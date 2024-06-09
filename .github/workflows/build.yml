@@ -30,6 +30,9 @@ jobs:
           version: "lab:latest"
           driver: cloud
           endpoint: "lferrarotti74/bugbuster-builder"
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 1
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
