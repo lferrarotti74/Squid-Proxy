@@ -38,7 +38,7 @@ jobs:
         with:
           context: .
           build-args: VERSION=${{ env.SQUID_VERSION }}
-          platforms: linux/amd64,linux/amd64/v2,linux/amd64/v3,linux/amd64/v4,linux/i386
+          platforms: linux/amd64,linux/amd64/v2,linux/amd64/v3,linux/amd64/v4,linux/i386,linux/arm64,linux/arm64/v6,linux/arm64/v7
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
