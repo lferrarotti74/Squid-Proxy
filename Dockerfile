@@ -2,7 +2,8 @@ FROM alpine:latest
 
 ARG VERSION
 
-RUN apk add --no-cache squid=${VERSION}
+RUN apk update && apk upgrade \
+    && apk add --no-cache squid=${VERSION}
 
 COPY scripts/entrypoint.sh /entrypoint.sh
 COPY scripts/healthcheck.sh /healthcheck.sh
