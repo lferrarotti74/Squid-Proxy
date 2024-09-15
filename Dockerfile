@@ -10,6 +10,7 @@ COPY scripts/healthcheck.sh /healthcheck.sh
 RUN chmod 755 /entrypoint.sh
 RUN chmod 755 /healthcheck.sh
 
+# Copy local files to base image
 COPY config/squid.conf /etc/squid/squid.conf
 
 # Define a custom healthcheck command
