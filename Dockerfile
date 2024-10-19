@@ -1,5 +1,11 @@
 FROM alpine:latest
 
+LABEL org.opencontainers.image.title="SquidProxy"
+LABEL org.opencontainers.image.version="6.9-r0"
+LABEL org.opencontainers.image.description="Squid is a caching proxy for the Web supporting HTTP, HTTPS, FTP, and more."
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.source="https://github.com/lferrarotti74/SquidProxy"
+
 ARG VERSION
 
 RUN apk update && apk upgrade \
