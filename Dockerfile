@@ -8,8 +8,8 @@ LABEL org.opencontainers.image.source="https://github.com/lferrarotti74/SquidPro
 
 ARG VERSION
 
-RUN apk update && apk upgrade \
-    && apk add --no-cache squid=${VERSION}
+RUN apk --no-cache update && apk --no-cache upgrade \
+    && apk --update --no-cache add squid=${VERSION}
 
 COPY scripts/entrypoint.sh /entrypoint.sh
 COPY scripts/healthcheck.sh /healthcheck.sh
