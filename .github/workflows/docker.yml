@@ -10,8 +10,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  # IMAGE_NAME: ${{ github.repository }}
-  IMAGE_NAME: squid-proxy
+  IMAGE_NAME: ${{ github.repository }}
   SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
   # Using `latest` as the tag to compare assuming that it's already pushed
   COMPARE_TAG: latest
@@ -87,7 +86,7 @@ jobs:
         with:
           command: compare
           image: ${{ steps.meta.outputs.tags }}
-          to: ${{ env.REGISTRY }}/squid-proxy:${{ env.COMPARE_TAG }}
+          to: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.COMPARE_TAG }}
           ignore-unchanged: true
           only-severities: critical,high,medium
           write-comment: true
