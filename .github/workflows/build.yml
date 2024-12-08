@@ -110,7 +110,7 @@ jobs:
       - name: Create and push multi-arch manifest for versioned tag
         run: |
           docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux/amd64 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux/arm/v7 \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux/s390x
           docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
