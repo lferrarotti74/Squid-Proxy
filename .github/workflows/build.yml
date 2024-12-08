@@ -144,6 +144,6 @@ jobs:
         run: |
           echo "Verifying manifest list for 'latest' tag:"
           docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest || echo "Manifest for 'latest' tag not found."
-          echo "Verifying manifest list for versioned tag (${ env.SQUID_VERSION }):"
+          echo "Verifying manifest list for versioned tag (${{ env.SQUID_VERSION }}):"
           docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} || echo "Manifest for versioned tag not found."
   
