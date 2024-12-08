@@ -65,8 +65,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.7.1
         with:
-          version: "lab:latest"
-          driver: true # This sets up the local driver
+          driver-opts: |
+            network=host
 
       - name: Build and push supported architectures locally
         uses: docker/build-push-action@v6.10.0
