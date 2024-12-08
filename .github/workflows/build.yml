@@ -87,20 +87,17 @@ jobs:
           echo "Building and pushing single-arch images for unsupported architectures..."
           docker buildx build \
             --platform linux/arm/v7 \
-            --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build \
-            --cache-to type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build,mode=max \
-            --push \
             --build-arg VERSION=${{ env.SQUID_VERSION }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
-            .
+            --load \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7
+
           docker buildx build \
             --platform linux/s390x \
-            --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build \
-            --cache-to type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build,mode=max \
-            --push \
             --build-arg VERSION=${{ env.SQUID_VERSION }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x \
-            .
+            --load \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x
 
       - name: List Docker images for verification
         run: |
