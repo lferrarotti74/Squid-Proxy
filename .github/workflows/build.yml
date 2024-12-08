@@ -65,15 +65,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.7.1
         with:
-          driver-opts: |
-            network=host
+          version: "lab:latest"
+          driver: local
 
       - name: Build and push supported architectures locally
         uses: docker/build-push-action@v6.10.0
         with:
           context: .
           build-args: VERSION=${{ env.SQUID_VERSION }}
-          platforms: linux/amd64,linux/amd64/v2,linux/amd64/v3,linux/i386,linux/arm64
+          platforms: linux/amd64,linux/amd64/v2,linux/amd64/v3,linux/amd64/v4,linux/i386,linux/arm64
           provenance: mode=max
           sbom: true
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build
@@ -83,7 +83,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
           push: true # Pushes the images to the registry after building
 
-      - name: Build and push unsupported architectures locally
+      - name: Build unsupported architectures locally
         run: |
           docker buildx build \
             --platform linux/arm/v7,linux/s390x \
