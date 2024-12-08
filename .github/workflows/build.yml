@@ -81,6 +81,7 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
+          push: true # Pushes the images to the registry after building
 
       - name: Build and push unsupported architectures locally
         run: |
@@ -88,7 +89,7 @@ jobs:
             --platform linux/arm/v7,linux/s390x \
             --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build \
             --cache-to type=local,dest=/tmp/cache,mode=max \
-            --load \
+            --load \ # Loads the image into the local Docker environment
             --build-arg VERSION=${{ env.SQUID_VERSION }} \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x \
@@ -101,6 +102,7 @@ jobs:
 
       - name: Create and push multi-arch manifest
         run: |
+          # Create and push a multi-arch manifest for both latest and versioned tags
           docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
@@ -110,6 +112,6 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x
 
-          # Push the consolidated manifests to Docker Hub
+          # Push the manifest lists to Docker Hub
           docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
           docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
