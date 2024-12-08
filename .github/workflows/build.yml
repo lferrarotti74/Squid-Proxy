@@ -67,11 +67,6 @@ jobs:
         with:
           version: "lab:latest"
 
-      - name: List Docker images for verification
-        run: |
-          echo "Listing all Docker images:"
-          docker images
-  
       - name: Build and push supported architectures locally
         uses: docker/build-push-action@v6.10.0
         with:
@@ -99,7 +94,18 @@ jobs:
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x \
             .
-  
+
+      - name: List Docker images for verification
+        run: |
+          echo "Listing all Docker images after build and push steps:"
+          docker images
+
+      - name: List Docker manifests for verification
+        run: |
+          echo "Listing all Docker manifests:"
+          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest || echo "Manifest for latest not found"
+          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} || echo "Manifest for versioned tag not found"
+
       - name: Remove existing manifest lists (optional)
         run: |
           docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest || true
