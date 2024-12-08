@@ -89,7 +89,7 @@ jobs:
             --platform linux/arm/v7,linux/s390x \
             --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build \
             --cache-to type=local,dest=/tmp/cache,mode=max \
-            --load \ # Loads the image into the local Docker environment
+            --load \
             --build-arg VERSION=${{ env.SQUID_VERSION }} \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x \
