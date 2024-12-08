@@ -29,6 +29,7 @@ jobs:
     steps:
       - name: Print the purpose of run
         run: echo ${{ inputs.tags }} purpose
+
   docker:
     runs-on: ubuntu-latest
     steps:
@@ -50,7 +51,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Set up QEMU for Multi-Arch Builds
         uses: docker/setup-qemu-action@v2
         with:
@@ -65,10 +66,9 @@ jobs:
         uses: docker/setup-buildx-action@v3.7.1
         with:
           version: "lab:latest"
-          driver: cloud
-          endpoint: "lferrarotti74/bugbuster-builder"
+          driver: true # This sets up the local driver
 
-      - name: Build supported architectures from Cloud Build Platform
+      - name: Build and push supported architectures locally
         uses: docker/build-push-action@v6.10.0
         with:
           context: .
@@ -77,18 +77,17 @@ jobs:
           provenance: mode=max
           sbom: true
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build,mode=max
+          cache-to: type=local,dest=/tmp/cache,mode=max
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
 
-      - name: Build unsupported architectures locally
+      - name: Build and push unsupported architectures locally
         run: |
-          # Local build for architectures not supported by the cloud builder
           docker buildx build \
             --platform linux/arm/v7,linux/s390x \
             --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build \
-            --cache-to type=local,dest=/tmp/cache \
+            --cache-to type=local,dest=/tmp/cache,mode=max \
             --load \
             --build-arg VERSION=${{ env.SQUID_VERSION }} \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
@@ -99,10 +98,9 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x
-    
+
       - name: Create and push multi-arch manifest
         run: |
-          # Create a multi-arch manifest for both latest and versioned tags
           docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
@@ -111,7 +109,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x
-    
+
           # Push the consolidated manifests to Docker Hub
           docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
           docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
