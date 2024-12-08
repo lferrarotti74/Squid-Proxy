@@ -110,7 +110,7 @@ jobs:
         run: |
           echo "Attempting to remove existing manifest lists..."
           docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest || echo "No existing manifest found for 'latest'."
-          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} || echo "No existing manifest found for version ${ env.SQUID_VERSION }."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} || echo "No existing manifest found for version ${{ env.SQUID_VERSION }}."
   
       - name: Create and push multi-arch manifest for "latest" tag
         run: |
