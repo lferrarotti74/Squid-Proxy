@@ -67,6 +67,11 @@ jobs:
         with:
           version: "lab:latest"
 
+      - name: List Docker images for verification
+        run: |
+          echo "Listing all Docker images:"
+          docker images
+  
       - name: Build and push supported architectures locally
         uses: docker/build-push-action@v6.10.0
         with:
@@ -81,9 +86,10 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
           push: true # Pushes the images to the registry after building
-
+  
       - name: Build unsupported architectures locally and push
         run: |
+          echo "Building and pushing unsupported architectures: linux/arm/v7 and linux/s390x..."
           docker buildx build \
             --platform linux/arm/v7,linux/s390x \
             --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build \
@@ -93,28 +99,26 @@ jobs:
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x \
             .
-
-      - name: List Docker images for verification
+  
+      - name: Remove existing manifest lists (optional)
         run: |
-          echo "Listing all Docker images:"
-          docker images
-
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest || true
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} || true
+  
       - name: Create and push multi-arch manifest for "latest" tag
         run: |
-          echo "Creating multi-arch manifest for 'latest' tag..."
+          echo "Creating and pushing multi-arch manifest for 'latest' tag..."
           docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x
-          echo "Pushing 'latest' manifest..."
           docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
-
+  
       - name: Create and push multi-arch manifest for versioned tag
         run: |
-          echo "Creating multi-arch manifest for versioned tag (${ env.SQUID_VERSION })..."
+          echo "Creating and pushing multi-arch manifest for versioned tag (${ env.SQUID_VERSION })..."
           docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x
-          echo "Pushing versioned manifest..."
           docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
