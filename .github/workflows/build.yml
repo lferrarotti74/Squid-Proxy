@@ -94,11 +94,6 @@ jobs:
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x \
             .
 
-      - name: Remove existing manifest lists (optional)
-        run: |
-          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest || true
-          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} || true
-
       - name: List Docker images for verification
         run: |
           echo "Listing all Docker images:"
