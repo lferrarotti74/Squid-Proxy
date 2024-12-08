@@ -82,22 +82,17 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
           push: true # Pushes the images to the registry after building
 
-      - name: Build unsupported architectures locally
+      - name: Build unsupported architectures locally and push
         run: |
           docker buildx build \
             --platform linux/arm/v7,linux/s390x \
             --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build \
-            --cache-to type=local,dest=/tmp/cache,mode=max \
-            --load \
+            --cache-to type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build,mode=max \
+            --push \
             --build-arg VERSION=${{ env.SQUID_VERSION }} \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7 \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x \
             .
-
-      - name: Push local images for unsupported architectures
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-arm-v7
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:linux-s390x
 
       - name: Create and push multi-arch manifest
         run: |
