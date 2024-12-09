@@ -56,7 +56,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up QEMU for Multi-Arch Builds
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
@@ -68,7 +68,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.7.1
         with:
-          version: "latest"
+          version: latest
 
       - name: Set Matrix Platform name
         id: matrix-platform-name
@@ -83,12 +83,12 @@ jobs:
           build-args: VERSION=${{ env.SQUID_VERSION }}
           provenance: mode=max
           sbom: true
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build
-          cache-to: type=local,dest=/tmp/cache,mode=max
+          # cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build
+          # cache-to: type=local,dest=/tmp/cache,mode=max
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-${{ steps.matrix-platform-name.outputs.matrix-platform-name }}
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-${{ steps.matrix-platform-name.outputs.matrix-platform-name }}
-          push: true # Pushes the images to the registry after building
+          # push: true # Pushes the images to the registry after building
 
   manifest:
     runs-on: ubuntu-latest
@@ -113,6 +113,16 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+      - name: Set up QEMU for Multi-Arch Builds
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Verify QEMU Installation
+        run: |
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          echo "QEMU has been set up successfully."
 
       - name: Create and Push Multi-Arch Manifest for Versioned Tag
         run: |
@@ -130,7 +140,7 @@ jobs:
           
       - name: Create and Push Multi-Arch Manifest for Latest Tag
         run: |
-          echo "Creating and pushing multi-arch manifest for versioned tag..."
+          echo "Creating and pushing multi-arch manifest for latest tag..."
           docker manifest create \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest \
             --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64 \
