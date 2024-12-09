@@ -108,12 +108,14 @@ jobs:
           echo "Listing all Docker manifests:"
           docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest || echo "Manifest for latest not found"
           docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} || echo "Manifest for versioned tag not found"
+          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-base || echo "Manifest for versioned tag-base not found"
 
       - name: Remove existing manifest lists (force)
         run: |
           echo "Attempting to remove existing manifest lists..."
           docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest || echo "No existing manifest found for 'latest'."
           docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} || echo "No existing manifest found for version ${{ env.SQUID_VERSION }}."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-base || echo "No existing manifest found for version ${{ env.SQUID_VERSION }}-base."
   
       - name: Create and push multi-arch manifest for 'latest' tag
         run: |
