@@ -43,6 +43,9 @@ jobs:
           - linux/arm/v7
           - linux/s390x
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
       - name: Set Environment
         uses: c-py/action-dotenv-to-setenv@v5
         id: source-env
@@ -58,9 +61,6 @@ jobs:
         run: |
           echo 'matrix-platform-name=${{ matrix.platform }}' | sed 's:/:-:g' >> $GITHUB_OUTPUT
           
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Set up QEMU for Multi-Arch Builds
         uses: docker/setup-qemu-action@v3
         with:
