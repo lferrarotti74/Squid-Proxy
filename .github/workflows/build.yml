@@ -125,26 +125,26 @@ jobs:
           echo "Creating and pushing multi-arch manifest for versioned tag..."
           docker manifest create \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v2 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v3 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-i386 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm-v7 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-s390x
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v2 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v3 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-i386 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm64 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm-v7 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-s390x
           
       - name: Create and Push Multi-Arch Manifest for Latest Tag
         run: |
           echo "Creating and pushing multi-arch manifest for latest tag..."
           docker manifest create \
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64-v2 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64-v3 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-i386 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-arm64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-arm-v7 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-s390x
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64-v2 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64-v3 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-i386 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-arm64 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-arm-v7 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-s390x
           
       - name: Push manifests
         run: |
