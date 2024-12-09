@@ -88,7 +88,7 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-${{ steps.matrix-platform-name.outputs.matrix-platform-name }}
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-${{ steps.matrix-platform-name.outputs.matrix-platform-name }}
-          # push: true # Pushes the images to the registry after building
+          push: true # Pushes the images to the registry after building
 
   manifest:
     runs-on: ubuntu-latest
@@ -124,6 +124,24 @@ jobs:
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
           echo "QEMU has been set up successfully."
 
+      - name: Remove existing manifest lists (force)
+        run: |
+          echo "Attempting to remove existing manifest lists..."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64 || echo "No existing manifest found for 'latest-linux-amd64'."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64-v2 || echo "No existing manifest found for 'latest-linux-amd64-v2'."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64-v3 || echo "No existing manifest found for 'latest-linux-amd64-v3'."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-i386 || echo "No existing manifest found for 'latest-linux-i386'."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-arm64 || echo "No existing manifest found for 'latest-linux-arm64'."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-arm-v7 || echo "No existing manifest found for 'latest-linux-arm-v7'."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-s390x || echo "No existing manifest found for 'latest-linux-s390x'."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64 || echo "No existing manifest found for version ${{ env.SQUID_VERSION }}-linux-amd64."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v2 || echo "No existing manifest found for version ${{ env.SQUID_VERSION }}-linux-amd64-v2."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v3 || echo "No existing manifest found for version ${{ env.SQUID_VERSION }}-linux-amd64-v3."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-i386 || echo "No existing manifest found for version ${{ env.SQUID_VERSION }}-linux-i386."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm64 || echo "No existing manifest found for version ${{ env.SQUID_VERSION }}-linux-arm64."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm-v7 || echo "No existing manifest found for version ${{ env.SQUID_VERSION }}-linux-arm-v7."
+          docker manifest rm ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-s390x || echo "No existing manifest found for version ${{ env.SQUID_VERSION }}-linux-s390x."
+          
       - name: Create and Push Multi-Arch Manifest for Versioned Tag
         run: |
           echo "Creating and pushing multi-arch manifest for versioned tag..."
