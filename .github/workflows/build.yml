@@ -106,9 +106,9 @@ jobs:
       - name: List Docker manifests for verification
         run: |
           echo "Listing all Docker manifests:"
-          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest || echo "Manifest for latest not found"
-          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} || echo "Manifest for versioned tag not found"
-          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-base || echo "Manifest for versioned tag-base not found"
+          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest | jq || echo "Manifest for latest not found"
+          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} | jq || echo "Manifest for versioned tag not found"
+          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-base | jq || echo "Manifest for versioned tag-base not found"
 
       - name: Remove existing manifest lists (force)
         run: |
