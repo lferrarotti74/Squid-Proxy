@@ -73,7 +73,7 @@ jobs:
       - name: Set Matrix Platform name
         id: matrix-platform-name
         run: |
-          echo 'matrix-platform-name=-${{ matrix.platform }}' | sed 's:/:-:g' >> $GITHUB_OUTPUT
+          echo 'matrix-platform-name=${{ matrix.platform }}' | sed 's:/:-:g' >> $GITHUB_OUTPUT
 
       - name: Build and Push Image
         uses: docker/build-push-action@v6.10.0
