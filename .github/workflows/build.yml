@@ -70,6 +70,11 @@ jobs:
         with:
           version: "latest"
 
+      - name: Set Matrix Platform name
+        id: matrix-platform-name
+        run: |
+          echo 'matrix-platform-name=-${{ matrix.platform }}' | sed 's:/:-:g' >> $GITHUB_OUTPUT
+
       - name: Build and Push Image
         uses: docker/build-push-action@v6.10.0
         with:
@@ -81,7 +86,7 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build
           cache-to: type=local,dest=/tmp/cache,mode=max
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-${{ matrix.platform }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-${{ steps.matrix-platform-name.outputs.matrix-platform-name }}
           push: true # Pushes the images to the registry after building
 
   manifest:
@@ -98,17 +103,17 @@ jobs:
         run: |
           echo "Creating and pushing multi-arch manifest for versioned tag..."
           docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux/amd64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux/amd64/v2 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux/amd64/v3 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux/i386 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux/arm64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux/arm/v7 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux/s390x
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v2 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v3 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-i386 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm64 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm-v7 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-s390x
           docker manifest annotate ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux/arm/v7 --os linux --arch arm --variant v7
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm-v7 --os linux --arch arm --variant v7
           docker manifest annotate ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux/s390x --os linux --arch s390x
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-s390x --os linux --arch s390x
           docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
 
       - name: Verify the Pushed Manifest
