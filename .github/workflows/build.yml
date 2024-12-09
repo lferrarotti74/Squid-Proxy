@@ -64,8 +64,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.7.1
-        with:
-          version: "lab:latest"
 
       - name: Build and push supported architectures locally
         uses: docker/build-push-action@v6.10.0
