@@ -87,6 +87,7 @@ jobs:
           cache-to: type=local,dest=/tmp/cache,mode=max
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-${{ steps.matrix-platform-name.outputs.matrix-platform-name }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-${{ steps.matrix-platform-name.outputs.matrix-platform-name }}
           push: true # Pushes the images to the registry after building
 
   manifest:
@@ -116,21 +117,34 @@ jobs:
       - name: Create and Push Multi-Arch Manifest for Versioned Tag
         run: |
           echo "Creating and pushing multi-arch manifest for versioned tag..."
-          docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v2 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v3 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-i386 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm-v7 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-s390x
-          docker manifest annotate ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm-v7 --os linux --arch arm --variant v7
-          docker manifest annotate ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-s390x --os linux --arch s390x
+          docker manifest create \
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v2 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v3 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-i386 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm64 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm-v7 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-s390x
           docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
+          
+      - name: Create and Push Multi-Arch Manifest for Latest Tag
+        run: |
+          echo "Creating and pushing multi-arch manifest for versioned tag..."
+          docker manifest create \
+            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64-v2 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64-v3 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-i386 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-arm64 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-arm-v7 \
+            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-s390x
+          docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
 
       - name: Verify the Pushed Manifest
         run: |
-          echo "Verifying manifest for versioned tag (${{ env.SQUID_VERSION }}):"                                                                                                                                         
+          echo "Verifying manifest for versioned tag (${{ env.SQUID_VERSION }}):"
           docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} | jq
+          echo "Verifying manifest for latest tag :"
+          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest | jq
