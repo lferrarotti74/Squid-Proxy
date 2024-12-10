@@ -22,29 +22,42 @@ on:
       - "main"
     paths-ignore:
       - '.github/workflows/**'
+      
+env:
+  REGISTRY_IMAGE: lferrarotti74/squid-proxy
 
 jobs:
-  print-tag:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Print the purpose of run
-        run: echo ${{ inputs.tags }}
-
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        platform: 
-          - linux/amd64
-          - linux/amd64/v2
-          - linux/amd64/v3
-          - linux/i386
-          - linux/arm64
-          - linux/arm/v7
-          - linux/s390x
+        platform: [
+          {name: "linux/i386", tag: "i386"},
+          {name: "linux/amd64", tag: "amd64"},
+          {name: "linux/arm/v6", tag: "arm32v6"},
+          {name: "linux/arm/v7", tag: "arm32v7"},
+          {name: "linux/arm64/v8", tag: "arm64v8"},
+          {name: "linux/ppc64le", tag: "ppc64le"},
+          {name: "linux/riscv64", tag: "riscv64"},
+          {name: "linux/s390x", tag: "s390x"}
+        ]
     steps:
+      - name: Print the Purpose of Run
+        run: echo "Purpose of Run: ${{ inputs.tags }}"
+        
       - name: Checkout
         uses: actions/checkout@v4
+        
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform.name }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
+        
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
         
       - name: Set Environment
         uses: c-py/action-dotenv-to-setenv@v5
@@ -56,10 +69,11 @@ jobs:
         run: | 
           echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
           
-      - name: Set Matrix Platform name
-        id: matrix-platform-name
-        run: |
-          echo 'matrix-platform-name=${{ matrix.platform }}' | sed 's:/:-:g' >> $GITHUB_OUTPUT
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3.3.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
           
       - name: Set up QEMU for Multi-Arch Builds
         uses: docker/setup-qemu-action@v3
@@ -76,84 +90,34 @@ jobs:
         with:
           version: latest
           
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3.3.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and Push Image
+      - name: Build and Push Image by Digest
+        id: build
+        run: echo "Building and tagging image for platform ${{ matrix.platform.name }}"
         uses: docker/build-push-action@v6.10.0
         with:
           context: .
-          platforms: ${{ matrix.platform }}
+          platforms: ${{ matrix.platform.name }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: VERSION=${{ env.SQUID_VERSION }}
           provenance: mode=max
           sbom: true
-          # cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/cache:build
-          # cache-to: type=local,dest=/tmp/cache,mode=max
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-${{ steps.matrix-platform-name.outputs.matrix-platform-name }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-${{ steps.matrix-platform-name.outputs.matrix-platform-name }}
-          push: true # Pushes the images to the registry after building
-
-  release:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Set Environment
-        uses: c-py/action-dotenv-to-setenv@v5
-        id: source-env
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=false
+          
+      - name: Export and Debug Uploaded Digests
+        run: |
+          mkdir -p /tmp/digests
+          if [ -z "${{ steps.build.outputs.digest }}" ]; then
+            echo "Error: No digest found!" && exit 1
+          fi
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+          echo "Digest file created:"
+          ls -l /tmp/digests
+          
+      - name: Upload Digest
+        uses: actions/upload-artifact@v4
         with:
-          env-file: env/.env
-
-      - name: Echo Squid Version from env file
-        run: | 
-          echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
-          
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3.3.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          
-      - name: Create and Push Multi-Arch Manifest for Versioned Tag
-        run: |
-          echo "Creating and pushing multi-arch manifest for versioned tag..."
-          docker manifest create \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v2 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-amd64-v3 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-i386 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm64 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-arm-v7 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}-linux-s390x
-          
-      - name: Create and Push Multi-Arch Manifest for Latest Tag
-        run: |
-          echo "Creating and pushing multi-arch manifest for latest tag..."
-          docker manifest create \
-            ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64-v2 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-amd64-v3 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-i386 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-arm64 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-arm-v7 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest-linux-s390x
-          
-      - name: Push manifests
-        run: |
-          docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }}
-          docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest
-
-      - name: Verify the Pushed Manifest
-        run: |
-          echo "Verifying manifest for versioned tag (${{ env.SQUID_VERSION }}):"
-          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:${{ env.SQUID_VERSION }} | jq
-          echo "Verifying manifest for latest tag :"
-          docker manifest inspect ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy:latest | jq
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
