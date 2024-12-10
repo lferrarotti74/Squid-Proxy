@@ -59,6 +59,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY_IMAGE }}
+          
+      - name: Debug DOCKER_METADATA_OUTPUT_JSON
+        run: |
+          echo "$DOCKER_METADATA_OUTPUT_JSON"
         
       - name: Set Environment
         uses: c-py/action-dotenv-to-setenv@v5
