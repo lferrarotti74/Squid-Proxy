@@ -93,8 +93,6 @@ jobs:
           
       - name: Build and Push Image by Digest
         id: build
-        run: |
-          echo "Building and tagging image for platform ${{ matrix.platform.name }}"
         uses: docker/build-push-action@v6.10.0
         with:
           context: .
