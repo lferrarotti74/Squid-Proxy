@@ -53,17 +53,7 @@ jobs:
         run: |
           platform=${{ matrix.platform.name }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
-        
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY_IMAGE }}
           
-      - name: Debug DOCKER_METADATA_OUTPUT_JSON
-        run: |
-          echo "$DOCKER_METADATA_OUTPUT_JSON"
-        
       - name: Set Environment
         uses: c-py/action-dotenv-to-setenv@v5
         id: source-env
@@ -73,7 +63,20 @@ jobs:
       - name: Echo Squid Version from env file
         run: | 
           echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
+        
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: |
+            type=semver,pattern=${{ env.SQUID_VERSION }}
+            type=semver,pattern=latest
           
+      - name: Debug DOCKER_METADATA_OUTPUT_JSON
+        run: |
+          echo "$DOCKER_METADATA_OUTPUT_JSON"
+        
       - name: Log in to Docker Hub
         uses: docker/login-action@v3.3.0
         with:
@@ -103,9 +106,9 @@ jobs:
           platforms: ${{ matrix.platform.name }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: VERSION=${{ env.SQUID_VERSION }}
-          tags: |
-            ${{ env.REGISTRY_IMAGE }}:latest
-            ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }}
+          # tags: |
+            # ${{ env.REGISTRY_IMAGE }}:latest
+            # ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }}
           provenance: mode=max
           sbom: true
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=false
