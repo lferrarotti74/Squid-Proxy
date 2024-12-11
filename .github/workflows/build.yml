@@ -146,6 +146,11 @@ jobs:
           path: /tmp/digests
           pattern: digests-*
           merge-multiple: true
+          
+      - name: List digests donwloaded
+        run: |
+          echo "Digest files retrieved:"
+          ls -l /tmp/digests
         
       - name: Set Environment
         uses: c-py/action-dotenv-to-setenv@v5
