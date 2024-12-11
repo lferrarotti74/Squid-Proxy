@@ -71,7 +71,7 @@ jobs:
           images: ${{ env.REGISTRY_IMAGE }}
           # tags: |
             # type=semver,pattern=${{ env.SQUID_VERSION }}
-            type=semver,pattern=latest
+            # type=semver,pattern=latest
    
       - name: Log in to Docker Hub
         uses: docker/login-action@v3.3.0
