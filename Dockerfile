@@ -1,5 +1,8 @@
 FROM alpine:latest
 
+# Define an optional build argument to invalidate cache
+ARG CACHEBUST=1
+
 ARG VERSION
 
 LABEL org.opencontainers.image.title="SquidProxy"
@@ -9,7 +12,8 @@ LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.source="https://github.com/lferrarotti74/SquidProxy"
 
 RUN apk --no-cache update && apk --no-cache upgrade \
-    && apk --update --no-cache add squid=${VERSION}
+    && apk --update --no-cache add squid=${VERSION} \
+    && rm -rf /var/cache/apk/*
 
 COPY scripts/entrypoint.sh /entrypoint.sh
 COPY scripts/healthcheck.sh /healthcheck.sh
