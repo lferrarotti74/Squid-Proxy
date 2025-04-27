@@ -29,7 +29,6 @@ jobs:
 
     runs-on: ubuntu-latest
     # Job-level permissions are no longer needed as they're defined at workflow level
-    # But you can keep them here if you want to override specific ones
 
     steps:
       - name: Checkout repository
@@ -83,14 +82,18 @@ jobs:
             type=semver,pattern=v{{version}}
             type=sha,prefix=,suffix=,format=short
 
-      # Set lower case image name for both registries
-      - name: Set lower case owner names
+      # Correctly set lower case image names
+      - name: Set cache reference names
         run: |
-          echo "DOCKERHUB_IMAGE_LC=${DOCKER_IMAGE,,}" >>${GITHUB_ENV}
-          echo "GHCR_IMAGE_LC=${GHCR_IMAGE,,}" >>${GITHUB_ENV}
-        env:
-          DOCKER_IMAGE: '${{ github.repository }}'
-          GHCR_IMAGE: 'ghcr.io/${{ github.repository_owner }}/squid-proxy'
+          # Extract repo owner and name
+          REPO_PATH="${{ github.repository }}"
+          REPO_LC="${REPO_PATH,,}"
+          OWNER="${{ github.repository_owner }}"
+          OWNER_LC="${OWNER,,}"
+          
+          # Set environment variables for cache references
+          echo "DOCKERHUB_CACHE_REF=${{ env.REGISTRY }}/${REPO_LC}:buildcache" >> $GITHUB_ENV
+          echo "GHCR_CACHE_REF=${{ env.GHCR_REGISTRY }}/${OWNER_LC}/squid-proxy:buildcache" >> $GITHUB_ENV
 
       # Build and push Docker image with Buildx (don't push on PR)
       - name: Build and push Docker image
@@ -105,9 +108,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           # Use GHCR for cache to avoid Docker Hub rate limits
           cache-from: |
-            type=registry,ref=${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_LC }}:buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.DOCKERHUB_IMAGE_LC }}:buildcache
-          cache-to: type=registry,ref=${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_LC }}:buildcache,mode=max
+            type=registry,ref=${{ env.GHCR_CACHE_REF }}
+            type=registry,ref=${{ env.DOCKERHUB_CACHE_REF }}
+          cache-to: type=registry,ref=${{ env.GHCR_CACHE_REF }},mode=max
 
       - name: Docker Scout
         id: docker-scout
