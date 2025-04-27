@@ -1,11 +1,5 @@
 name: Docker Scout
 
-# Add permissions block at the workflow level
-permissions:
-  contents: read
-  packages: write
-  pull-requests: write
-
 on:
   pull_request:
     branches:
@@ -16,9 +10,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  GHCR_REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/squid-proxy
-  GHCR_IMAGE_NAME: ${{ github.repository_owner }}/squid-proxy
+  IMAGE_NAME: ${{ github.repository }}
   SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
   # Using `latest` as the tag to compare assuming that it's already pushed
   COMPARE_TAG: latest
@@ -28,7 +20,10 @@ jobs:
     # if: github.actor!= 'dependabot[bot]'   # ignore the pull request which comes from user dependabot.
 
     runs-on: ubuntu-latest
-    # Job-level permissions are no longer needed as they're defined at workflow level
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -52,29 +47,19 @@ jobs:
           driver-opts: |
             image=moby/buildkit:v0.10.6
 
-      # Login to Docker Hub
-      - name: Log into Docker Hub registry
+      # Login against a Docker registry except on PR
+      - name: Log into registry ${{ env.REGISTRY }}
         uses: docker/login-action@v3.4.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Login to GitHub Container Registry
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3.4.0
-        with:
-          registry: ${{ env.GHCR_REGISTRY }}
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5.6.1
         with:
-          images: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           labels: |
             org.opencontainers.image.revision=${{ env.SHA }}
           tags: |
@@ -82,22 +67,12 @@ jobs:
             type=semver,pattern=v{{version}}
             type=sha,prefix=,suffix=,format=short
 
-      # Correctly set lower case image names
-      - name: Set cache reference names
+      # set lower case image name
+      - name: set lower case owner name
         run: |
-          # Extract repo owner and name
-          REPO_PATH="${{ github.repository }}"
-          REPO_LC="${REPO_PATH,,}"
-          OWNER="${{ github.repository_owner }}"
-          OWNER_LC="${OWNER,,}"
-          
-          # Set environment variables for cache references
-          echo "DOCKERHUB_CACHE_REF=${{ env.REGISTRY }}/${REPO_LC}:buildcache" >> $GITHUB_ENV
-          echo "GHCR_CACHE_REF=${{ env.GHCR_REGISTRY }}/${OWNER_LC}/squid-proxy:buildcache" >> $GITHUB_ENV
-          
-          # Export lowercase variables for use in Docker Scout
-          echo "REPO_LC=${REPO_LC}" >> $GITHUB_ENV
-          echo "OWNER_LC=${OWNER_LC}" >> $GITHUB_ENV
+          echo "IMAGE_LC=${IMAGE,,}" >>${GITHUB_ENV}
+        env:
+          IMAGE: '${{ github.repository }}'
 
       # Build and push Docker image with Buildx (don't push on PR)
       - name: Build and push Docker image
@@ -110,11 +85,10 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Use GHCR for cache to avoid Docker Hub rate limits
-          cache-from: |
-            type=registry,ref=${{ env.GHCR_CACHE_REF }}
-            type=registry,ref=${{ env.DOCKERHUB_CACHE_REF }}
-          cache-to: type=registry,ref=${{ env.GHCR_CACHE_REF }},mode=max
+          # cache-from: type=gha
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_LC }}:buildcache
+          # cache-to: type=gha,mode=max
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_LC }}:buildcache,mode=max
 
       - name: Docker Scout
         id: docker-scout
@@ -122,14 +96,11 @@ jobs:
         uses: docker/scout-action@v1
         with:
           command: cves,recommendations,compare
-          image: |
-            ${{ steps.meta.outputs.tags }}
-          to: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.OWNER_LC }}/squid-proxy:${{ env.COMPARE_TAG }}
-            ${{ env.REGISTRY }}/${{ env.REPO_LC }}:${{ env.COMPARE_TAG }}
+          image: ${{ steps.meta.outputs.tags }}
+          to: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.COMPARE_TAG }}
           ignore-base: true
           ignore-unchanged: true
           only-severities: critical,high,medium
           only-fixed: true
           write-comment: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }} # to be able to write the comment
