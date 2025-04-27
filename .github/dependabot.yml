@@ -16,8 +16,6 @@ updates:
       time: "04:00"
     # Enable a limit for pull requests for Docker dependencies
     open-pull-requests-limit: 10
-    # Versioning strategy for Docker
-    versioning-strategy: auto
 
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -26,5 +24,3 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
-    # Versioning strategy for GitHub Actions
-    versioning-strategy: increase-if-necessary
