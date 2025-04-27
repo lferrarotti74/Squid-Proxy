@@ -17,7 +17,7 @@ on:
 env:
   REGISTRY: docker.io
   GHCR_REGISTRY: ghcr.io
-  IMAGE_NAME: squid-proxy
+  IMAGE_NAME: ${{ github.repository_owner }}/squid-proxy
   GHCR_IMAGE_NAME: ${{ github.repository_owner }}/squid-proxy
   SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
   # Using `latest` as the tag to compare assuming that it's already pushed
