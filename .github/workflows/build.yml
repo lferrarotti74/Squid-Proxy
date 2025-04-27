@@ -1,5 +1,10 @@
 name: Build release image
 
+# Add permissions block
+permissions:
+  contents: read
+  packages: write
+
 on:
   workflow_dispatch:
     inputs:
