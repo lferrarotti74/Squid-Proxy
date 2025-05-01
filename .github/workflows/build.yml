@@ -159,7 +159,6 @@ jobs:
 
   # Build images on ARM runner
   build-arm:
-    #runs-on: ubuntu-latest-arm64 # ARM-specific runner
     runs-on: ubuntu-24.04-arm # ARM-specific runner
     strategy:
       matrix:
@@ -208,17 +207,6 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Set up QEMU for Multi-Arch Builds
-        uses: docker/setup-qemu-action@v3
-        with:
-          image: tonistiigi/binfmt:latest
-          platforms: ${{ matrix.platform.name }}
-
-      - name: Verify QEMU Installation
-        run: |
-          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-          echo "QEMU has been set up successfully."
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.10.0
         with:
@@ -229,10 +217,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ matrix.platform.name }}-${{ github.sha }}
+          key: ${{ runner.os }}-arm-buildx-${{ matrix.platform.name }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-${{ matrix.platform.name }}-
-            ${{ runner.os }}-buildx-
+            ${{ runner.os }}-arm-buildx-${{ matrix.platform.name }}-
+            ${{ runner.os }}-arm-buildx-
         
       - name: Build and Push Image by Digest
         id: build
