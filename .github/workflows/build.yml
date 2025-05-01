@@ -159,7 +159,8 @@ jobs:
 
   # Build images on ARM runner
   build-arm:
-    runs-on: ubuntu-latest-arm64 # ARM-specific runner
+    #runs-on: ubuntu-latest-arm64 # ARM-specific runner
+    runs-on: ubuntu-24.04-arm # ARM-specific runner
     strategy:
       matrix:
         platform: [
