@@ -416,58 +416,61 @@ jobs:
         run: |
           echo "Verifying image architecture support..."
           manifest_latest=$(docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest --raw)
-          manifest_version=$(docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }} --raw)
             
           # Define all expected architectures
           declare -A expected_archs
-          expected_archs["linux/amd64"]="architecture=amd64,os=linux"
-          expected_archs["linux/386"]="architecture=386,os=linux"
-          expected_archs["linux/arm64"]="architecture=arm64,os=linux"
-          expected_archs["linux/arm/v7"]="architecture=arm,os=linux,variant=v7"
-          expected_archs["linux/arm/v6"]="architecture=arm,os=linux,variant=v6"
-          expected_archs["linux/riscv64"]="architecture=riscv64,os=linux"
-          expected_archs["linux/ppc64le"]="architecture=ppc64le,os=linux"
-          expected_archs["linux/s390x"]="architecture=s390x,os=linux"
+          expected_archs["linux/amd64"]="amd64,linux,"
+          expected_archs["linux/386"]="386,linux,"
+          expected_archs["linux/arm64"]="arm64,linux,"
+          expected_archs["linux/arm/v7"]="arm,linux,v7"
+          expected_archs["linux/arm/v6"]="arm,linux,v6"
+          expected_archs["linux/riscv64"]="riscv64,linux,"
+          expected_archs["linux/ppc64le"]="ppc64le,linux,"
+          expected_archs["linux/s390x"]="s390x,linux,"
             
           # Check latest image
           echo "Checking architectures in :latest tag..."
           missing_archs=""
             
-          for arch in "${!expected_archs[@]}"; do
-            # Extract components from the expected pattern
-            components=(${expected_archs[$arch]//,/ })
+          # First, extract all valid platform entries from the manifest (excluding attestations)
+          platforms=$(echo "$manifest_latest" | jq -c '.manifests[] | select(.platform.architecture != "unknown") | .platform')
+            
+          # Check each expected architecture
+          for arch_name in "${!expected_archs[@]}"; do
+            # Parse expected values
+            IFS=',' read -r exp_arch exp_os exp_variant <<< "${expected_archs[$arch_name]}"
               
             # Initialize found flag
             arch_found=false
               
-            # For each manifest entry, check if it matches our architecture
-            while read -r manifest_entry; do
-              match=true
-                
-              # Check each component in our expected pattern
-              for component in "${components[@]}"; do
-                key=$(echo $component | cut -d= -f1)
-                value=$(echo $component | cut -d= -f2)
-                  
-                # Check if this component exists in the manifest entry with the expected value
-                if ! echo "$manifest_entry" | grep -q "\"$key\": \"$value\""; then
-                  match=false
+            # Check each platform in the manifest
+            while read -r platform; do
+              # Extract actual values
+              act_arch=$(echo "$platform" | jq -r '.architecture')
+              act_os=$(echo "$platform" | jq -r '.os')
+              act_variant=$(echo "$platform" | jq -r '.variant // ""')
+               
+              # Compare values
+              if [[ "$act_arch" == "$exp_arch" && "$act_os" == "$exp_os" ]]; then
+                # For architectures with variants, check the variant too
+                if [[ -n "$exp_variant" && "$exp_variant" != "" ]]; then
+                  if [[ "$act_variant" == "$exp_variant" ]]; then
+                    arch_found=true
+                    break
+                  fi
+                else
+                  # For architectures without variants, we already have a match
+                  arch_found=true
                   break
                 fi
-              done
-                
-              # If all components matched, we found this architecture
-              if [ "$match" = true ]; then
-                arch_found=true
-                break
               fi
-            done < <(echo "$manifest_latest" | jq -c '.manifests[] | .platform')
+            done < <(echo "$platforms")
               
             if [ "$arch_found" = true ]; then
-              echo "✅ Found: $arch"
+              echo "✅ Found: $arch_name"
             else
-              echo "⚠️ Missing: $arch"
-              missing_archs="$missing_archs $arch"
+              echo "⚠️ Missing: $arch_name"
+              missing_archs="$missing_archs $arch_name"
             fi
           done
             
