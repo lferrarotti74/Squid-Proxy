@@ -1,6 +1,6 @@
 name: Build release image
 
-# Add permissions block
+# Add permissions block for GitHub Packages
 permissions:
   contents: read
   packages: write
@@ -30,46 +30,47 @@ on:
       - 'LICENSE'
       
 env:
-  REGISTRY_IMAGE: lferrarotti74/squid-proxy
+  REGISTRY_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy
   GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/squid-proxy
 
 jobs:
-  build:
+  print-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print the purpose of run
+        run: |
+          echo "Purpose of Run: ${{ inputs.tags }}"
+        
+  # Build images on x86 runner
+  build-x86:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         platform: [
-          {name: "linux/i386", tag: "i386"},
           {name: "linux/amd64", tag: "amd64"},
-          {name: "linux/arm/v6", tag: "arm32v6"},
-          {name: "linux/arm/v7", tag: "arm32v7"},
-          {name: "linux/arm64/v8", tag: "arm64v8"},
-          {name: "linux/ppc64le", tag: "ppc64le"},
+          {name: "linux/386", tag: "i386"},
           {name: "linux/riscv64", tag: "riscv64"},
+          {name: "linux/ppc64le", tag: "ppc64le"},
           {name: "linux/s390x", tag: "s390x"}
         ]
     steps:
-      - name: Print the Purpose of Run
-        run: |
-          echo "Purpose of Run: ${{ inputs.tags }}"
-        
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Prepare
-        run: |
-          platform=${{ matrix.platform.name }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
-          
       - name: Set Environment
         uses: c-py/action-dotenv-to-setenv@v5
         id: source-env
         with:
           env-file: env/.env
-
+          
       - name: Echo Squid Version from env file
         run: | 
           echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
+        
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform.name }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
         
       - name: Docker meta
         id: meta
@@ -78,9 +79,6 @@ jobs:
           images: |
             ${{ env.REGISTRY_IMAGE }}
             ${{ env.GHCR_IMAGE }}
-          # tags: |
-            # type=semver,pattern=${{ env.SQUID_VERSION }}
-            # type=semver,pattern=latest
    
       - name: Log in to Docker Hub
         uses: docker/login-action@v3.4.0
@@ -98,7 +96,8 @@ jobs:
       - name: Set up QEMU for Multi-Arch Builds
         uses: docker/setup-qemu-action@v3
         with:
-          platforms: all
+          image: tonistiigi/binfmt:latest
+          platforms: ${{ matrix.platform.name }}
 
       - name: Verify QEMU Installation
         run: |
@@ -119,47 +118,152 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-${{ matrix.platform.name }}-
             ${{ runner.os }}-buildx-
-          
+        
       - name: Build and Push Image by Digest
         id: build
         uses: docker/build-push-action@v6.16.0
         with:
           context: .
           platforms: ${{ matrix.platform.name }}
-          labels: ${{ steps.meta.outputs.labels }}
           build-args: VERSION=${{ env.SQUID_VERSION }}
-          # tags: |
-            # ${{ env.REGISTRY_IMAGE }}:latest
-            # ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }}
+          labels: ${{ steps.meta.outputs.labels }}
           provenance: mode=max
           sbom: true
-          # outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
-          outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-
+          
       # This is a workaround to prevent cache size from growing indefinitely
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
           
-      - name: Debug DOCKER_METADATA_OUTPUT_JSON
-        run: |
-          echo "$DOCKER_METADATA_OUTPUT_JSON"
-          
-      - name: Export and Debug Uploaded Digests
+      - name: Export Digests
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p /tmp/digests
-          if [ -z "${{ steps.build.outputs.digest }}" ]; then
-            echo "Error: No digest found!" && exit 1
-          fi
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
           echo "Digest file created:"
           ls -l /tmp/digests
           
       - name: Upload Digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Build images on ARM runner
+  build-arm:
+    runs-on: ubuntu-latest-arm64 # ARM-specific runner
+    strategy:
+      matrix:
+        platform: [
+          {name: "linux/arm64/v8", tag: "arm64v8"},
+          {name: "linux/arm/v7", tag: "arm32v7"},
+          {name: "linux/arm/v6", tag: "arm32v6"}
+        ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Set Environment
+        uses: c-py/action-dotenv-to-setenv@v5
+        id: source-env
+        with:
+          env-file: env/.env
+          
+      - name: Echo Squid Version from env file
+        run: | 
+          echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
+        
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform.name }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
+        
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY_IMAGE }}
+            ${{ env.GHCR_IMAGE }}
+   
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3.4.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Set up QEMU for Multi-Arch Builds
+        uses: docker/setup-qemu-action@v3
+        with:
+          image: tonistiigi/binfmt:latest
+          platforms: ${{ matrix.platform.name }}
+
+      - name: Verify QEMU Installation
+        run: |
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          echo "QEMU has been set up successfully."
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.10.0
+        with:
+          version: latest
+
+      # Add caching for Docker layers
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ matrix.platform.name }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-${{ matrix.platform.name }}-
+            ${{ runner.os }}-buildx-
+        
+      - name: Build and Push Image by Digest
+        id: build
+        uses: docker/build-push-action@v6.16.0
+        with:
+          context: .
+          platforms: ${{ matrix.platform.name }}
+          build-args: VERSION=${{ env.SQUID_VERSION }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+          outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          
+      # This is a workaround to prevent cache size from growing indefinitely
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          
+      - name: Export Digests
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+          echo "Digest file created:"
+          ls -l /tmp/digests
+          
+      - name: Upload Digest
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: digests-${{ env.PLATFORM_PAIR }}
@@ -170,11 +274,23 @@ jobs:
   merge:
     runs-on: ubuntu-latest
     needs: 
-      - build
+      - build-x86
+      - build-arm
+    if: github.event_name != 'pull_request'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
+      
+      - name: Set Environment
+        uses: c-py/action-dotenv-to-setenv@v5
+        id: source-env
+        with:
+          env-file: env/.env
+          
+      - name: Echo Squid Version from env file
+        run: | 
+          echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
+      
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
@@ -182,21 +298,11 @@ jobs:
           pattern: digests-*
           merge-multiple: true
           
-      - name: List digests donwloaded
+      - name: List digests downloaded
         run: |
           echo "Digest files retrieved:"
           ls -l /tmp/digests
         
-      - name: Set Environment
-        uses: c-py/action-dotenv-to-setenv@v5
-        id: source-env
-        with:
-          env-file: env/.env
-
-      - name: Echo Squid Version from env file
-        run: | 
-          echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
-          
       - name: Log in to Docker Hub
         uses: docker/login-action@v3.4.0
         with:
@@ -221,14 +327,6 @@ jobs:
             ${{ env.REGISTRY_IMAGE }}
             ${{ env.GHCR_IMAGE }}
           
-      #- name: Create manifest list and push
-      #  working-directory: /tmp/digests
-      #  run: |
-      #    docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:latest \
-      #      $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
-      #    docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }} \
-      #      $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
-
       - name: Create manifest list and push to Docker Hub
         working-directory: /tmp/digests
         run: |
@@ -253,3 +351,108 @@ jobs:
           echo "GHCR images:"
           docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:latest
           docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:${{ env.SQUID_VERSION }}
+
+  # Image security analysis
+  analyze-image:
+    runs-on: ubuntu-latest
+    needs: merge
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3.4.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Set Environment
+        uses: c-py/action-dotenv-to-setenv@v5
+        id: source-env
+        with:
+          env-file: env/.env
+          
+      - name: Echo Squid Version from env file
+        run: | 
+          echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.47.0
+
+      - name: Scan Docker Hub latest image with Trivy
+        run: |
+          echo "Scanning ${{ env.REGISTRY_IMAGE }}:latest for vulnerabilities..."
+          trivy image --exit-code 0 --severity HIGH,CRITICAL ${{ env.REGISTRY_IMAGE }}:latest
+          
+      - name: Scan Docker Hub versioned image with Trivy
+        run: |
+          echo "Scanning ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }} for vulnerabilities..."
+          trivy image --exit-code 0 --severity HIGH,CRITICAL ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }}
+
+      - name: Scan GHCR latest image with Trivy
+        run: |
+          echo "Scanning ${{ env.GHCR_IMAGE }}:latest for vulnerabilities..."
+          trivy image --exit-code 0 --severity HIGH,CRITICAL ${{ env.GHCR_IMAGE }}:latest
+          
+      - name: Scan GHCR versioned image with Trivy
+        run: |
+          echo "Scanning ${{ env.GHCR_IMAGE }}:${{ env.SQUID_VERSION }} for vulnerabilities..."
+          trivy image --exit-code 0 --severity HIGH,CRITICAL ${{ env.GHCR_IMAGE }}:${{ env.SQUID_VERSION }}
+
+      - name: Generate Trivy vulnerability reports
+        run: |
+          mkdir -p trivy-reports
+          trivy image --format json --output trivy-reports/docker-report-latest.json ${{ env.REGISTRY_IMAGE }}:latest
+          trivy image --format json --output trivy-reports/docker-report-${{ env.SQUID_VERSION }}.json ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }}
+          trivy image --format json --output trivy-reports/ghcr-report-latest.json ${{ env.GHCR_IMAGE }}:latest
+          trivy image --format json --output trivy-reports/ghcr-report-${{ env.SQUID_VERSION }}.json ${{ env.GHCR_IMAGE }}:${{ env.SQUID_VERSION }}
+          
+      - name: Upload vulnerability reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-vulnerability-reports
+          path: trivy-reports
+          retention-days: 14
+
+      - name: Verify architecture support
+        run: |
+          echo "Verifying image architecture support..."
+          manifest_latest=$(docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest --raw)
+          manifest_version=$(docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }} --raw)
+          
+          # Define all expected architectures
+          expected_archs=("linux/amd64" "linux/386" "linux/arm64" "linux/arm/v7" "linux/arm/v6" "linux/riscv64" "linux/ppc64le" "linux/s390x")
+          
+          # Check latest image
+          echo "Checking architectures in :latest tag..."
+          missing_archs=""
+          for arch in ${expected_archs[@]}; do
+            if [[ $arch == "linux/arm64" ]]; then
+              search_arch="linux/arm64/v8"
+            elif [[ $arch == "linux/arm/v7" || $arch == "linux/arm/v6" ]]; then
+              search_arch=$arch
+            else
+              search_arch=$arch
+            fi
+            
+            if ! echo "$manifest_latest" | grep -q "$search_arch"; then
+              echo "⚠️ Missing: $arch"
+              missing_archs="$missing_archs $arch"
+            else
+              echo "✅ Found: $arch"
+            fi
+          done
+          
+          # If we have missing architectures, print a warning but don't fail
+          if [[ ! -z "$missing_archs" ]]; then
+            echo "⚠️ Warning: The following architectures are not included in the image: $missing_archs"
+            echo "This is not an error if these architectures were intentionally excluded."
+          else
+            echo "✅ All expected architectures are included in the image!"
+          fi
