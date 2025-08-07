@@ -28,6 +28,8 @@ on:
     paths-ignore:
       - 'README.md'
       - 'LICENSE'
+    pull_request:
+    types: [opened, synchronize, reopened]
       
 env:
   REGISTRY_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/squid-proxy
@@ -40,6 +42,25 @@ jobs:
       - name: Print the purpose of run
         run: |
           echo "Purpose of Run: ${{ inputs.tags }}"
+
+  # SonarQube Analysis Job
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=lferrarotti74_Squid-Proxy
+            -Dsonar.organization=lferrarotti74
         
   # Build images on x86 runner
   build-x86:
