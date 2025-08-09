@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM alpine:3
 
 # Define an optional build argument to invalidate cache
 ARG CACHEBUST=1
@@ -17,8 +17,8 @@ RUN apk --no-cache update && apk --no-cache upgrade \
 
 COPY scripts/entrypoint.sh /entrypoint.sh
 COPY scripts/healthcheck.sh /healthcheck.sh
-RUN chmod 755 /entrypoint.sh
-RUN chmod 755 /healthcheck.sh
+
+RUN chmod 755 /entrypoint.sh ; chmod 755 /healthcheck.sh
 
 # Copy local files to base image
 COPY config/squid.conf /etc/squid/squid.conf
