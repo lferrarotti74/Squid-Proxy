@@ -661,21 +661,31 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Update stored Alpine digest
+      - name: Conditionally update stored Alpine digest
         run: |
-          echo "📝 Updating stored Alpine digest..."
-          echo "Previous: ${{ vars.ALPINE_DIGEST }}"
-          echo "New: ${{ needs.check-base-image.outputs.alpine_digest }}"
+          echo "📝 Checking if Alpine digest needs update..."
 
+          CURRENT="${{ vars.ALPINE_DIGEST }}"
+          NEW="${{ needs.check-base-image.outputs.alpine_digest }}"
+
+          echo "Current: $CURRENT"
+          echo "New:     $NEW"
+
+          if [ "$CURRENT" = "$NEW" ]; then
+            echo "ℹ️ No change in Alpine digest — skipping update."
+            exit 0
+          fi
+
+          echo "✏️ Updating stored Alpine digest..."
           gh variable set ALPINE_DIGEST \
-            --body "${{ needs.check-base-image.outputs.alpine_digest }}" \
+            --body "$NEW" \
             --repo "${GITHUB_REPOSITORY}"
 
           echo "✅ Alpine digest updated successfully!"
           echo "Next scheduled run will use this new digest for comparison."
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
-
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
   # NEW: Build Summary
   build-summary:
     runs-on: ubuntu-latest
