@@ -1,12 +1,12 @@
 # Squid Proxy
 
-[![Build Status](https://github.com/lferrarotti74/Squid-Proxy/workflows/Build%20release%20image/badge.svg)](https://github.com/lferrarotti74/Squid-Proxy/actions)
-[![Create Release](https://github.com/lferrarotti74/Squid-Proxy/workflows/Create%20Release/badge.svg)](https://github.com/lferrarotti74/Squid-Proxy/actions)
-[![Docker Pulls](https://img.shields.io/docker/pulls/lferrarotti74/squidproxy)](https://hub.docker.com/r/lferrarotti74/squidproxy)
-[![Docker Image Size](https://img.shields.io/docker/image-size/lferrarotti74/squidproxy/latest)](https://hub.docker.com/r/lferrarotti74/squidproxy)
-[![GitHub release](https://img.shields.io/github/release/lferrarotti74/Squid-Proxy.svg)](https://github.com/lferrarotti74/Squid-Proxy/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://github.com/lferrarotti74/Squid-Proxy/workflows/Build%20release%20image/badge.svg)](https://github.com/lferrarotti74/Squid-Proxy/actions/workflows/build.yml)
+[![GitHub release](https://img.shields.io/github/v/release/lferrarotti74/Squid-Proxy)](https://github.com/lferrarotti74/Squid-Proxy/releases)
+[![Docker Pulls](https://img.shields.io/docker/pulls/lferrarotti74/squid-proxy)](https://hub.docker.com/r/lferrarotti74/squid-proxy)
+[![Docker Image Size](https://img.shields.io/docker/image-size/lferrarotti74/squid-proxy/latest)](https://hub.docker.com/r/lferrarotti74/squid-proxy)
+[![License](https://img.shields.io/github/license/lferrarotti74/Squid-Proxy)](LICENSE)
 
+<!-- SonarQube Badges -->
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=lferrarotti74_Squid-Proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=lferrarotti74_Squid-Proxy)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=lferrarotti74_Squid-Proxy&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=lferrarotti74_Squid-Proxy)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=lferrarotti74_Squid-Proxy&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=lferrarotti74_Squid-Proxy)
@@ -30,19 +30,19 @@ Key features:
 
 ### Pull the Docker Image
 ```bash
-docker pull lferrarotti74/squidproxy:latest
+docker pull lferrarotti74/squid-proxy:latest
 ```
 
 ### Run the Container
 ```bash
 # Basic usage with default configuration
-docker run -d --name squid-proxy -p 3128:3128 lferrarotti74/squidproxy:latest
+docker run -d --name squid-proxy -p 3128:3128 lferrarotti74/squid-proxy:latest
 
 # With custom configuration
 docker run -d --name squid-proxy \
   -p 3128:3128 \
   -v /path/to/your/squid.conf:/etc/squid/squid.conf:ro \
-  lferrarotti74/squidproxy:latest
+  lferrarotti74/squid-proxy:latest
 ```
 
 ## Usage Examples
@@ -310,6 +310,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Squid Official Website](http://www.squid-cache.org/)
 - [Squid Documentation](http://www.squid-cache.org/Doc/)
 - [Alpine Linux](https://alpinelinux.org/)
-- [Docker Hub Repository](https://hub.docker.com/r/lferrarotti74/squidproxy)
+- [Docker Hub Repository](https://hub.docker.com/r/lferrarotti74/squid-proxy)
 - [GitHub Repository](https://github.com/lferrarotti74/Squid-Proxy)
 - [SonarCloud Analysis](https://sonarcloud.io/summary/new_code?id=lferrarotti74_Squid-Proxy)
