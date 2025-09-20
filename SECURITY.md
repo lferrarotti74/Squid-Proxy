@@ -139,7 +139,7 @@ We use automated security scanning tools:
 
 For security-related questions or concerns:
 
-- **Email**: [lferrarotti74@gmail.com](mailto:lferrarotti74@gmail.com)
+- **Email**: [luca@ferrarotti.it](mailto:luca@ferrarotti.it)
 - **Subject**: `[SECURITY] Squid Proxy Security Question`
 
 ## Acknowledgments
