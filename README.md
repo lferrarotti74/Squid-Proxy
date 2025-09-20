@@ -312,4 +312,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Alpine Linux](https://alpinelinux.org/)
 - [Docker Hub Repository](https://hub.docker.com/r/lferrarotti74/squid-proxy)
 - [GitHub Repository](https://github.com/lferrarotti74/Squid-Proxy)
-- [SonarCloud Analysis](https://sonarcloud.io/summary/new_code?id=lferrarotti74_Squid-Proxy)
