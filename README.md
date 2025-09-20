@@ -301,6 +301,12 @@ We welcome contributions from the community! Please read our [Contributing Guide
 
 Please follow our [Code of Conduct](CODE_OF_CONDUCT.md) in all interactions.
 
+## Support
+
+For issues related to this Docker container, please open an issue on [GitHub](https://github.com/lferrarotti74/Squid-Proxy/issues).
+
+For Squid Proxy software support and documentation, please refer to the [Squid Official Website](http://www.squid-cache.org/).
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
