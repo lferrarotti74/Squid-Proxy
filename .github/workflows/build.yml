@@ -812,83 +812,121 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       
-      # Manual Trivy Setup for Better Performance
-      - name: Manual Trivy Setup
+      ######################
+      # Manual Trivy Setup
+      ######################
+      - name: Setup Trivy
         uses: aquasecurity/setup-trivy@e6c2c5e321ed9123bda567646e2f96565e34abe1 # v0.2.0
         with:
-          cache: true
-          version: v0.67.0
-      
-      # Enhanced Trivy Vulnerability Scanning
-      - name: Trivy Scan
+          version: 'v0.67.0'  # Use latest version as suggested in logs
+
+      - name: Cache Trivy DB
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}-${{ hashFiles('**/Dockerfile') }}-${{ github.run_id }}
+          restore-keys: |
+            trivy-db-${{ runner.os }}-${{ hashFiles('**/Dockerfile') }}-
+            trivy-db-${{ runner.os }}-
+
+      ######################
+      # Enhanced Trivy Scan
+      ######################
+      - name: Run Trivy vulnerability scanner
         run: |
-          # Enhanced Trivy scan with multiple output formats and optimizations
           trivy image \
             --format table \
             --output trivy-report.txt \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --exit-code 0 \
+            --no-progress \
+            --timeout 10m \
+            ${{ env.REGISTRY_IMAGE }}:latest
+
+      - name: Run Trivy SARIF scan for GitHub Security
+        run: |
+          trivy image \
             --format sarif \
             --output trivy-results.sarif \
             --severity CRITICAL,HIGH,MEDIUM \
-            --scanners vuln,secret \
             --exit-code 0 \
+            --no-progress \
+            --timeout 10m \
             ${{ env.REGISTRY_IMAGE }}:latest
-          
-          echo "✅ Trivy scan completed with enhanced configuration"
-      
-      # Install Syft for SBOM generation
-      - name: Install Syft (SBOM generator)
+
+      - name: Run Trivy secret scan
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b ./bin
-          echo "$PWD/bin" >> $GITHUB_PATH
-      
-      # Generate SBOM
-      - name: Generate SBOM
-        run: syft ${{ env.REGISTRY_IMAGE }}:latest -o json > sbom.json
-      
-      # Grype Vulnerability Scanning
+          trivy image \
+            --scanners secret \
+            --format table \
+            --output trivy-secrets.txt \
+            --exit-code 0 \
+            --no-progress \
+            --timeout 5m \
+            ${{ env.REGISTRY_IMAGE }}:latest
+
+      ######################
+      # Grype Scan
+      ######################
       - name: Grype Scan
         id: grype-scan
         uses: anchore/scan-action@869c549e657a088dc0441b08ce4fc0ecdac2bb65 # v5
         with:
-          image: '${{ env.REGISTRY_IMAGE }}:latest'
+          image: ${{ env.REGISTRY_IMAGE }}:latest
           output-format: 'json'
           fail-build: false
-          severity-cutoff: critical
-          only-fixed: false
-      
-      # Save Grype Report
+
       - name: Save Grype Report
         run: |
-          if [ -n "${{ steps.grype-scan.outputs.json }}" ]; then
-            echo '${{ steps.grype-scan.outputs.json }}' > grype-report.json
+          # The action outputs the JSON report path, let's copy it to our expected filename
+          if [ -f "${{ steps.grype-scan.outputs.json }}" ]; then
+            cp "${{ steps.grype-scan.outputs.json }}" grype-report.json
+            echo "✅ Grype report saved as grype-report.json"
           else
-            echo '{"matches":[],"source":{"type":"image","target":{"userInput":"'${{ env.REGISTRY_IMAGE }}':latest"}}}' > grype-report.json
+            echo "⚠️ Grype JSON report not found, creating empty report"
+            echo '{"matches": []}' > grype-report.json
           fi
-      
-      # OSV Scanner
-      - name: OSV Scanner
+
+      ######################
+      # OSV-Scanner for app dependencies
+      ######################
+      - name: Install Syft (SBOM generator)
         run: |
-          curl -L https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o osv-scanner
-          chmod +x osv-scanner
-          ./osv-scanner --format json --output osv-report.json sbom.json || echo '{"results":[]}' > osv-report.json
-      
-      # Upload security reports
-      - name: Upload Security Reports
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        with:
-          name: security-reports
-          path: |
-            trivy-report.txt
-            trivy-results.sarif
-            grype-report.json
-            sbom.json
-            osv-report.json
-          retention-days: 30
-      
-      # Upload SARIF results to GitHub Security
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh
+          # Add syft to PATH for subsequent steps
+          echo "$PWD/bin" >> $GITHUB_PATH
+
+      - name: Generate SBOM
+        run: syft ${{ env.REGISTRY_IMAGE }}:latest -o json > sbom.json
+
+      - name: Install OSV Scanner
+        run: curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | bash
+
+      - name: Scan SBOM with OSV
+        run: osv-scanner sbom.json --output osv-report.json || true
+
+      ######################
+      # Upload SARIF to GitHub Security
+      ######################
       - name: Upload Trivy SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@662472033e021d55d94146f66f6058822b0b39fd # v3.27.0
         if: always()
         with:
           sarif_file: trivy-results.sarif
           category: trivy-container-scan
+
+      ######################
+      # Upload all scan reports
+      ######################
+      - name: Upload Security Scan Reports
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: security-reports
+          path: |
+            trivy-report.txt
+            trivy-results.sarif
+            trivy-secrets.txt
+            grype-report.json
+            sbom.json
+            osv-report.json
+          retention-days: 30
