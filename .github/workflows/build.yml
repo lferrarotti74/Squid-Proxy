@@ -930,6 +930,3 @@ jobs:
             sbom.json
             osv-report.json
           retention-days: 30
-        with:
-          sarif_file: trivy-results.sarif
-          category: trivy-container-scan
