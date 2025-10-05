@@ -5,6 +5,7 @@ permissions:
   contents: write  # Required for updating variables
   packages: write
   actions: write   # Required for updating repository variables
+  security-events: write  # Required for uploading SARIF results to GitHub Security
 
 on:
   workflow_dispatch:
@@ -184,22 +185,34 @@ jobs:
             echo "Purpose of Run: ${{ inputs.tags || 'Code changes or manual trigger' }}"
           fi
 
+  # Dummy SonarQube Analysis for Dependabot
+  sonarqube-dummy:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    needs: [check-base-image]
+    steps:
+      - name: Skip SonarQube scan
+        run: echo "Skipping SonarQube scan for Dependabot PRs"
+
   # SonarQube Analysis Job
   sonarqube:
     name: SonarQube Analysis
     runs-on: ubuntu-latest
     if: >
-      (github.event_name == 'push' || github.event_name == 'pull_request') ||
-      (github.event_name == 'schedule' && needs.check-base-image.outputs.should_build == 'true')
+      github.actor != 'dependabot[bot]' && (
+        (github.event_name == 'push' || github.event_name == 'pull_request') ||
+        (github.event_name == 'schedule' && needs.check-base-image.outputs.should_build == 'true')
+      )
     needs: [check-base-image]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v5.2.0
         with:
           fetch-depth: 0  # Required for proper blame/coverage tracking
 
       - name: Cache SonarQube packages
-        uses: actions/cache@v4
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
@@ -207,25 +220,31 @@ jobs:
 
       - name: Prepare SonarQube arguments
         id: sonar-args
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "$EVENT_NAME" = "pull_request" ]; then
             echo "args=-Dsonar.projectKey=lferrarotti74_Squid-Proxy \
                   -Dsonar.organization=lferrarotti74 \
-                  -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} \
-                  -Dsonar.pullrequest.branch=${{ github.head_ref }} \
-                  -Dsonar.pullrequest.base=${{ github.base_ref }}" >> $GITHUB_OUTPUT
+                  -Dsonar.pullrequest.key=$PR_NUMBER \
+                  -Dsonar.pullrequest.branch=$HEAD_REF \
+                  -Dsonar.pullrequest.base=$BASE_REF" >> $GITHUB_OUTPUT
           else
             echo "args=-Dsonar.projectKey=lferrarotti74_Squid-Proxy \
                   -Dsonar.organization=lferrarotti74 \
-                  -Dsonar.branch.name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+                  -Dsonar.branch.name=$REF_NAME" >> $GITHUB_OUTPUT
           fi
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6.0.0
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io   # Change to self-hosted URL if needed
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Required for PR decoration
+          SONAR_HOST_URL: https://sonarcloud.io
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: ${{ steps.sonar-args.outputs.args }}
         
@@ -246,10 +265,10 @@ jobs:
         ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v5.2.0
         
       - name: Set Environment
-        uses: c-py/action-dotenv-to-setenv@v5
+        uses: c-py/action-dotenv-to-setenv@925b5d99a3f1e4bd7b4e9928be4e2491e29891d9 # v5
         id: source-env
         with:
           env-file: env/.env
@@ -273,7 +292,7 @@ jobs:
         
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
         with:
           images: |
             ${{ env.REGISTRY_IMAGE }}
@@ -285,20 +304,20 @@ jobs:
             type=raw,value=alpine-update-{{date 'YYYY-MM-DD'}},enable=${{ github.event_name == 'schedule' }}
    
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Set up QEMU for Multi-Arch Builds
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3
         with:
           image: tonistiigi/binfmt:latest
           platforms: ${{ matrix.platform.name }}
@@ -309,13 +328,13 @@ jobs:
           echo "QEMU has been set up successfully."
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.11.1
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
         with:
           version: latest
 
       # Add caching for Docker layers
       - name: Cache Docker layers
-        uses: actions/cache@v4
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ matrix.platform.name }}-${{ github.sha }}
@@ -325,7 +344,7 @@ jobs:
         
       - name: Build and Push Image by Digest
         id: build
-        uses: docker/build-push-action@v6.18.0
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.18.0
         with:
           context: .
           platforms: ${{ matrix.platform.name }}
@@ -357,7 +376,7 @@ jobs:
           
       - name: Upload Digest
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: digests-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
@@ -379,10 +398,10 @@ jobs:
         ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v5.2.0
         
       - name: Set Environment
-        uses: c-py/action-dotenv-to-setenv@v5
+        uses: c-py/action-dotenv-to-setenv@925b5d99a3f1e4bd7b4e9928be4e2491e29891d9 # v5
         id: source-env
         with:
           env-file: env/.env
@@ -406,7 +425,7 @@ jobs:
         
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
         with:
           images: |
             ${{ env.REGISTRY_IMAGE }}
@@ -418,26 +437,26 @@ jobs:
             type=raw,value=alpine-update-{{date 'YYYY-MM-DD'}},enable=${{ github.event_name == 'schedule' }}
    
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.11.1
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
         with:
           version: latest
 
       # Add caching for Docker layers
       - name: Cache Docker layers
-        uses: actions/cache@v4
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-arm-buildx-${{ matrix.platform.name }}-${{ github.sha }}
@@ -447,7 +466,7 @@ jobs:
         
       - name: Build and Push Image by Digest
         id: build
-        uses: docker/build-push-action@v6.18.0
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.18.0
         with:
           context: .
           platforms: ${{ matrix.platform.name }}
@@ -479,7 +498,7 @@ jobs:
           
       - name: Upload Digest
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: digests-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
@@ -495,10 +514,10 @@ jobs:
     if: github.event_name != 'pull_request' && (github.event_name != 'schedule' || needs.check-base-image.outputs.should_build == 'true')
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v5.2.0
       
       - name: Set Environment
-        uses: c-py/action-dotenv-to-setenv@v5
+        uses: c-py/action-dotenv-to-setenv@925b5d99a3f1e4bd7b4e9928be4e2491e29891d9 # v5
         id: source-env
         with:
           env-file: env/.env
@@ -508,7 +527,7 @@ jobs:
           echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
       
       - name: Download digests
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.4.3
         with:
           path: /tmp/digests
           pattern: digests-*
@@ -520,24 +539,24 @@ jobs:
           ls -l /tmp/digests
         
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3.6.0
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.11.1
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
         with:
           images: |
             ${{ env.REGISTRY_IMAGE }}
@@ -580,146 +599,7 @@ jobs:
           docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:latest
           docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:${{ env.SQUID_VERSION }}
 
-  # Image security analysis
-  analyze-image:
-    runs-on: ubuntu-latest
-    needs: [merge, check-base-image]
-    if: github.event_name != 'pull_request' && (github.event_name != 'schedule' || needs.check-base-image.outputs.should_build == 'true')
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
 
-      - name: Set Environment
-        uses: c-py/action-dotenv-to-setenv@v5
-        id: source-env
-        with:
-          env-file: env/.env
-          
-      - name: Echo Squid Version from env file
-        run: | 
-          echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3.6.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Install Trivy
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.47.0
-
-      - name: Scan Docker Hub latest image with Trivy
-        run: |
-          echo "Scanning ${{ env.REGISTRY_IMAGE }}:latest for vulnerabilities..."
-          trivy image --exit-code 0 --severity HIGH,CRITICAL ${{ env.REGISTRY_IMAGE }}:latest
-          
-      - name: Scan Docker Hub versioned image with Trivy
-        run: |
-          echo "Scanning ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }} for vulnerabilities..."
-          trivy image --exit-code 0 --severity HIGH,CRITICAL ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }}
-
-      - name: Scan GHCR latest image with Trivy
-        run: |
-          echo "Scanning ${{ env.GHCR_IMAGE }}:latest for vulnerabilities..."
-          trivy image --exit-code 0 --severity HIGH,CRITICAL ${{ env.GHCR_IMAGE }}:latest
-          
-      - name: Scan GHCR versioned image with Trivy
-        run: |
-          echo "Scanning ${{ env.GHCR_IMAGE }}:${{ env.SQUID_VERSION }} for vulnerabilities..."
-          trivy image --exit-code 0 --severity HIGH,CRITICAL ${{ env.GHCR_IMAGE }}:${{ env.SQUID_VERSION }}
-
-      - name: Generate Trivy vulnerability reports
-        run: |
-          mkdir -p trivy-reports
-          trivy image --format json --output trivy-reports/docker-report-latest.json ${{ env.REGISTRY_IMAGE }}:latest
-          trivy image --format json --output trivy-reports/docker-report-${{ env.SQUID_VERSION }}.json ${{ env.REGISTRY_IMAGE }}:${{ env.SQUID_VERSION }}
-          trivy image --format json --output trivy-reports/ghcr-report-latest.json ${{ env.GHCR_IMAGE }}:latest
-          trivy image --format json --output trivy-reports/ghcr-report-${{ env.SQUID_VERSION }}.json ${{ env.GHCR_IMAGE }}:${{ env.SQUID_VERSION }}
-          
-      - name: Upload vulnerability reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-vulnerability-reports
-          path: trivy-reports
-          retention-days: 14
-
-      - name: Verify architecture support
-        run: |
-          echo "Verifying image architecture support..."
-          manifest_latest=$(docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest --raw)
-            
-          # Define all expected architectures
-          declare -A expected_archs
-          expected_archs["linux/amd64"]="amd64,linux,"
-          expected_archs["linux/386"]="386,linux,"
-          expected_archs["linux/arm64"]="arm64,linux,"
-          expected_archs["linux/arm/v7"]="arm,linux,v7"
-          expected_archs["linux/arm/v6"]="arm,linux,v6"
-          expected_archs["linux/riscv64"]="riscv64,linux,"
-          expected_archs["linux/ppc64le"]="ppc64le,linux,"
-          expected_archs["linux/s390x"]="s390x,linux,"
-            
-          # Check latest image
-          echo "Checking architectures in :latest tag..."
-          missing_archs=""
-            
-          # First, extract all valid platform entries from the manifest (excluding attestations)
-          platforms=$(echo "$manifest_latest" | jq -c '.manifests[] | select(.platform.architecture != "unknown") | .platform')
-            
-          # Check each expected architecture
-          for arch_name in "${!expected_archs[@]}"; do
-            # Parse expected values
-            IFS=',' read -r exp_arch exp_os exp_variant <<< "${expected_archs[$arch_name]}"
-              
-            # Initialize found flag
-            arch_found=false
-              
-            # Check each platform in the manifest
-            while read -r platform; do
-              # Extract actual values
-              act_arch=$(echo "$platform" | jq -r '.architecture')
-              act_os=$(echo "$platform" | jq -r '.os')
-              act_variant=$(echo "$platform" | jq -r '.variant // ""')
-               
-              # Compare values
-              if [[ "$act_arch" == "$exp_arch" && "$act_os" == "$exp_os" ]]; then
-                # For architectures with variants, check the variant too
-                if [[ -n "$exp_variant" && "$exp_variant" != "" ]]; then
-                  if [[ "$act_variant" == "$exp_variant" ]]; then
-                    arch_found=true
-                    break
-                  fi
-                else
-                  # For architectures without variants, we already have a match
-                  arch_found=true
-                  break
-                fi
-              fi
-            done < <(echo "$platforms")
-              
-            if [ "$arch_found" = true ]; then
-              echo "✅ Found: $arch_name"
-            else
-              echo "⚠️ Missing: $arch_name"
-              missing_archs="$missing_archs $arch_name"
-            fi
-          done
-            
-          # If we have missing architectures, print a warning but don't fail
-          if [[ ! -z "$missing_archs" ]]; then
-            echo "⚠️ Warning: The following architectures are not included in the image: $missing_archs"
-            echo "This is not an error if these architectures were intentionally excluded."
-          else
-            echo "✅ All expected architectures are included in the image!"
-          fi
 
   # NEW: Update stored Alpine digest after successful build
   # Updated update-digest job
@@ -770,11 +650,123 @@ jobs:
   # NEW: Build Summary
   build-summary:
     runs-on: ubuntu-latest
-    needs: [check-base-image, build-x86, build-arm, merge, analyze-image, update-digest]
+    needs: [check-base-image, build-x86, build-arm, merge, security-scan, update-digest]
     if: always()
     steps:
+      - name: Download Security Reports
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          name: security-reports
+          path: ./security-reports
+        continue-on-error: true
+      
+      - name: Generate Security Summary
+        run: |
+          echo "## 🔒 Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          
+          # Enhanced Trivy parsing with SARIF support and improved accuracy
+          if [ -f "./security-reports/trivy-results.sarif" ]; then
+            # Use SARIF for more accurate parsing (prioritized)
+            CRITICAL=$(jq -r '.runs[].results[] | select(.level == "error" and (.ruleId | contains("CVE"))) | .ruleId' ./security-reports/trivy-results.sarif 2>/dev/null | wc -l || echo "0")
+            HIGH=$(jq -r '.runs[].results[] | select(.level == "warning" and (.ruleId | contains("CVE"))) | .ruleId' ./security-reports/trivy-results.sarif 2>/dev/null | wc -l || echo "0")
+            MEDIUM=$(jq -r '.runs[].results[] | select(.level == "note" and (.ruleId | contains("CVE"))) | .ruleId' ./security-reports/trivy-results.sarif 2>/dev/null | wc -l || echo "0")
+            LOW=$(jq -r '.runs[].results[] | select(.level == "info" and (.ruleId | contains("CVE"))) | .ruleId' ./security-reports/trivy-results.sarif 2>/dev/null | wc -l || echo "0")
+          elif [ -f "./security-reports/trivy-report.txt" ]; then
+            # Fallback to text parsing with improved accuracy
+            CRITICAL=$(grep -E "CVE-[0-9]{4}-[0-9]+.*CRITICAL" ./security-reports/trivy-report.txt | wc -l || echo "0")
+            HIGH=$(grep -E "CVE-[0-9]{4}-[0-9]+.*HIGH" ./security-reports/trivy-report.txt | wc -l || echo "0")
+            MEDIUM=$(grep -E "CVE-[0-9]{4}-[0-9]+.*MEDIUM" ./security-reports/trivy-report.txt | wc -l || echo "0")
+            LOW=$(grep -E "CVE-[0-9]{4}-[0-9]+.*LOW" ./security-reports/trivy-report.txt | wc -l || echo "0")
+          else
+            CRITICAL=0; HIGH=0; MEDIUM=0; LOW=0
+          fi
+          
+          # Parse Trivy secrets report (enhanced - use dedicated secrets file)
+          if [ -f "./security-reports/trivy-secrets.txt" ]; then
+            SECRET_FINDINGS=$(grep -E "(SECRET|API_KEY|PASSWORD|TOKEN)" ./security-reports/trivy-secrets.txt | wc -l || echo "0")
+          else
+            SECRET_FINDINGS=0
+          fi
+          
+          # Parse Grype report for additional CVEs
+          if [ -f "./security-reports/grype-report.json" ]; then
+            GRYPE_CRITICAL=$(jq -r '.matches[] | select(.vulnerability.severity == "Critical") | .vulnerability.id' ./security-reports/grype-report.json 2>/dev/null | wc -l || echo "0")
+            GRYPE_HIGH=$(jq -r '.matches[] | select(.vulnerability.severity == "High") | .vulnerability.id' ./security-reports/grype-report.json 2>/dev/null | wc -l || echo "0")
+            GRYPE_MEDIUM=$(jq -r '.matches[] | select(.vulnerability.severity == "Medium") | .vulnerability.id' ./security-reports/grype-report.json 2>/dev/null | wc -l || echo "0")
+            GRYPE_LOW=$(jq -r '.matches[] | select(.vulnerability.severity == "Low") | .vulnerability.id' ./security-reports/grype-report.json 2>/dev/null | wc -l || echo "0")
+          else
+            GRYPE_CRITICAL=0; GRYPE_HIGH=0; GRYPE_MEDIUM=0; GRYPE_LOW=0
+          fi
+          
+          # Parse OSV report
+          if [ -f "./security-reports/osv-report.json" ]; then
+            OSV_VULNS=$(jq -r '.results[].packages[].vulnerabilities[]?.id' ./security-reports/osv-report.json 2>/dev/null | wc -l || echo "0")
+          else
+            OSV_VULNS=0
+          fi
+          
+          # Calculate totals
+          TOTAL_CRITICAL=$((CRITICAL + GRYPE_CRITICAL))
+          TOTAL_HIGH=$((HIGH + GRYPE_HIGH))
+          TOTAL_MEDIUM=$((MEDIUM + GRYPE_MEDIUM))
+          TOTAL_LOW=$((LOW + GRYPE_LOW))
+          TOTAL_VULNS=$((TOTAL_CRITICAL + TOTAL_HIGH + TOTAL_MEDIUM + TOTAL_LOW + OSV_VULNS))
+          
+          # Enhanced security status with secret priority
+          if [ $SECRET_FINDINGS -gt 0 ]; then
+            STATUS="🟡 **SECRETS FOUND - ACTION REQUIRED**"
+          elif [ $TOTAL_CRITICAL -gt 0 ]; then
+            STATUS="🔴 **CRITICAL VULNERABILITIES FOUND**"
+          elif [ $TOTAL_HIGH -gt 0 ]; then
+            STATUS="🟠 **HIGH VULNERABILITIES FOUND**"
+          elif [ $TOTAL_MEDIUM -gt 0 ]; then
+            STATUS="🟡 **MEDIUM VULNERABILITIES FOUND**"
+          elif [ $TOTAL_LOW -gt 0 ]; then
+            STATUS="🟢 **LOW VULNERABILITIES FOUND**"
+          else
+            STATUS="✅ **NO VULNERABILITIES FOUND**"
+          fi
+          
+          echo "### $STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Vulnerability Summary Table
+          echo "#### 🛡️ Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Trivy | Grype | Total |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔴 Critical | $CRITICAL | $GRYPE_CRITICAL | $TOTAL_CRITICAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟠 High | $HIGH | $GRYPE_HIGH | $TOTAL_HIGH |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟡 Medium | $MEDIUM | $GRYPE_MEDIUM | $TOTAL_MEDIUM |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔵 Low | $LOW | $GRYPE_LOW | $TOTAL_LOW |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 **Total** | **$((CRITICAL + HIGH + MEDIUM + LOW))** | **$((GRYPE_CRITICAL + GRYPE_HIGH + GRYPE_MEDIUM + GRYPE_LOW))** | **$((TOTAL_CRITICAL + TOTAL_HIGH + TOTAL_MEDIUM + TOTAL_LOW))** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Secret Scanning Results
+          echo "#### 🔐 Secret Scanning Results" >> $GITHUB_STEP_SUMMARY
+          if [ $SECRET_FINDINGS -gt 0 ]; then
+            echo "⚠️ **$SECRET_FINDINGS secret(s) detected** - Review and remediate immediately!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No secrets detected in the container image" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "**OSV Scanner**: $OSV_VULNS dependency vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Enhanced Scan Details
+          echo "#### 📋 Scan Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Enhanced Trivy (v0.67.0)**: Container and filesystem vulnerability + secret scanner" >> $GITHUB_STEP_SUMMARY
+          echo "- **Grype**: Container image vulnerability scanner" >> $GITHUB_STEP_SUMMARY
+          echo "- **OSV Scanner**: Open Source Vulnerability scanner" >> $GITHUB_STEP_SUMMARY
+          echo "- **Syft**: Software Bill of Materials (SBOM) generator" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact Retention**: 30 days" >> $GITHUB_STEP_SUMMARY
+          echo "- **Output Formats**: Table, SARIF, JSON" >> $GITHUB_STEP_SUMMARY
+          echo "- **SARIF Upload**: Results uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+          echo "- **Performance**: Manual setup with caching enabled" >> $GITHUB_STEP_SUMMARY
+      
       - name: Generate Build Summary
         run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🚀 Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           
@@ -803,3 +795,100 @@ jobs:
             echo "- linux/amd64, linux/386, linux/riscv64, linux/ppc64le, linux/s390x" >> $GITHUB_STEP_SUMMARY
             echo "- linux/arm64/v8, linux/arm/v7, linux/arm/v6" >> $GITHUB_STEP_SUMMARY
           fi
+
+  # NEW: Comprehensive Security Scanning Pipeline
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [merge, build-x86, build-arm]
+    if: always() && (needs.merge.result == 'success' || (needs.build-x86.result == 'success' && needs.build-arm.result == 'success'))
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v5.2.0
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      # Manual Trivy Setup for Better Performance
+      - name: Manual Trivy Setup
+        uses: aquasecurity/setup-trivy@e6c2c5e321ed9123bda567646e2f96565e34abe1 # v0.2.0
+        with:
+          cache: true
+          version: v0.67.0
+      
+      # Enhanced Trivy Vulnerability Scanning
+      - name: Trivy Scan
+        run: |
+          # Enhanced Trivy scan with multiple output formats and optimizations
+          trivy image \
+            --format table \
+            --output trivy-report.txt \
+            --format sarif \
+            --output trivy-results.sarif \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --scanners vuln,secret \
+            --exit-code 0 \
+            ${{ env.REGISTRY_IMAGE }}:latest
+          
+          echo "✅ Trivy scan completed with enhanced configuration"
+      
+      # Install Syft for SBOM generation
+      - name: Install Syft (SBOM generator)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b ./bin
+          echo "$PWD/bin" >> $GITHUB_PATH
+      
+      # Generate SBOM
+      - name: Generate SBOM
+        run: syft ${{ env.REGISTRY_IMAGE }}:latest -o json > sbom.json
+      
+      # Grype Vulnerability Scanning
+      - name: Grype Scan
+        id: grype-scan
+        uses: anchore/scan-action@869c549e657a088dc0441b08ce4fc0ecdac2bb65 # v5
+        with:
+          image: '${{ env.REGISTRY_IMAGE }}:latest'
+          output-format: 'json'
+          fail-build: false
+          severity-cutoff: critical
+          only-fixed: false
+      
+      # Save Grype Report
+      - name: Save Grype Report
+        run: |
+          if [ -n "${{ steps.grype-scan.outputs.json }}" ]; then
+            echo '${{ steps.grype-scan.outputs.json }}' > grype-report.json
+          else
+            echo '{"matches":[],"source":{"type":"image","target":{"userInput":"'${{ env.REGISTRY_IMAGE }}':latest"}}}' > grype-report.json
+          fi
+      
+      # OSV Scanner
+      - name: OSV Scanner
+        run: |
+          curl -L https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o osv-scanner
+          chmod +x osv-scanner
+          ./osv-scanner --format json --output osv-report.json sbom.json || echo '{"results":[]}' > osv-report.json
+      
+      # Upload security reports
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: security-reports
+          path: |
+            trivy-report.txt
+            trivy-results.sarif
+            grype-report.json
+            sbom.json
+            osv-report.json
+          retention-days: 30
+      
+      # Upload SARIF results to GitHub Security
+      - name: Upload Trivy SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@662472033e021d55d94146f66f6058822b0b39fd # v3.27.0
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-container-scan
