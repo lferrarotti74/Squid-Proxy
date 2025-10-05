@@ -13,6 +13,7 @@ LABEL org.opencontainers.image.source="https://github.com/lferrarotti74/SquidPro
 
 RUN apk --no-cache update && apk --no-cache upgrade \
     && apk --update --no-cache add squid=${VERSION} \
+    && apk --no-cache upgrade libssl3 libcrypto3 openssl \
     && rm -rf /var/cache/apk/*
 
 COPY scripts/entrypoint.sh /entrypoint.sh
