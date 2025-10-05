@@ -830,8 +830,6 @@ jobs:
             --output trivy-results.sarif \
             --severity CRITICAL,HIGH,MEDIUM \
             --scanners vuln,secret \
-            --skip-db-update \
-            --skip-java-db-update \
             --exit-code 0 \
             ${{ env.REGISTRY_IMAGE }}:latest
           
