@@ -798,7 +798,7 @@ jobs:
 
   # NEW: Comprehensive Security Scanning Pipeline
   security-scan:
-    name: Security Scan
+    name: Security Scan (Trivy + Grype + OSV)
     runs-on: ubuntu-latest
     needs: [merge, build-x86, build-arm]
     if: always() && (needs.merge.result == 'success' || (needs.build-x86.result == 'success' && needs.build-arm.result == 'success'))
