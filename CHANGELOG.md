@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Added comprehensive security policy and vulnerability reporting guidelines
 
-## [6.12-r0] - 2025-09-14
+## [6.12-r0] - 2025-01-14
 
 ### Added
 - Initial release of Squid Proxy Docker container

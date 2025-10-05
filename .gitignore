@@ -338,6 +338,7 @@ id_dsa                 # SSH private key
 *.tmp                  # Temporary files
 *.temp                 # Temporary files
 *~                     # Temporary files created by editors
+repository-security-checklist.md # Security checklist
 
 # =============================================================================
 # PROJECT SPECIFIC
