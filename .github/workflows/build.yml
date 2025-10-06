@@ -909,7 +909,7 @@ jobs:
       # Upload SARIF to GitHub Security
       ######################
       - name: Upload Trivy SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@662472033e021d55d94146f66f6058822b0b39fd # v3.27.0
+        uses: github/codeql-action/upload-sarif@64d10c13136e1c5bce3e5fbde8d4906eeaafc885 # v3.30.6
         if: always()
         with:
           sarif_file: trivy-results.sarif
