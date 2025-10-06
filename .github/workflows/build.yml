@@ -870,7 +870,7 @@ jobs:
       ######################
       - name: Grype Scan
         id: grype-scan
-        uses: anchore/scan-action@869c549e657a088dc0441b08ce4fc0ecdac2bb65 # v5
+        uses: anchore/scan-action@f6601287cdb1efc985d6b765bbf99cb4c0ac29d8 # v5
         with:
           image: ${{ env.REGISTRY_IMAGE }}:latest
           output-format: 'json'
