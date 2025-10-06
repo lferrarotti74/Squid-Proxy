@@ -1,6 +1,7 @@
 # Squid Proxy
 
 [![Build Status](https://github.com/lferrarotti74/Squid-Proxy/workflows/Build%20release%20image/badge.svg)](https://github.com/lferrarotti74/Squid-Proxy/actions/workflows/build.yml)
+[![Unit Tests](https://github.com/lferrarotti74/Squid-Proxy/workflows/Unit%20Test/badge.svg)](https://github.com/lferrarotti74/Squid-Proxy/actions/workflows/tests.yml)
 [![GitHub release](https://img.shields.io/github/v/release/lferrarotti74/Squid-Proxy)](https://github.com/lferrarotti74/Squid-Proxy/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/lferrarotti74/squid-proxy)](https://hub.docker.com/r/lferrarotti74/squid-proxy)
 [![Docker Image Size](https://img.shields.io/docker/image-size/lferrarotti74/squid-proxy/latest)](https://hub.docker.com/r/lferrarotti74/squid-proxy)
