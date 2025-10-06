@@ -350,6 +350,9 @@ repository-security-checklist.md # Security checklist
 # static/collected/     # Django collected static files
 # *.local.json          # Local configuration files
 
+# Security checklist (contains sensitive security information)
+repository-security-checklist.md
+
 # =============================================================================
 # COMMON PATTERNS TO CONSIDER
 # =============================================================================
