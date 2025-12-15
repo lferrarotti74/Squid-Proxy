@@ -527,7 +527,7 @@ jobs:
           echo ${{ steps.source-env.outputs.squid_version }} >> "$GITHUB_ENV"
       
       - name: Download digests
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v4.4.3
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v4.4.3
         with:
           path: /tmp/digests
           pattern: digests-*
@@ -654,7 +654,7 @@ jobs:
     if: always()
     steps:
       - name: Download Security Reports
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v4
         with:
           name: security-reports
           path: ./security-reports
