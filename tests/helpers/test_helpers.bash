@@ -111,7 +111,7 @@ wait_for_squid() {
     local max_attempts="${2:-30}"
     local attempt=1
     
-    while [ $attempt -le $max_attempts ]; do
+    while [[ $attempt -le $max_attempts ]]; do
         if docker exec "${container_name}" nc -z localhost 3128 2>/dev/null; then
             print_success "Squid is ready after $attempt attempts"
             return 0
@@ -178,7 +178,7 @@ ensure_test_image() {
     if ! docker images --format "table {{.Repository}}:{{.Tag}}" | grep -q "^${TEST_IMAGE}$"; then
         print_warning "Test image ${TEST_IMAGE} not found, building..."
         docker build -t "${TEST_IMAGE}" .
-        if [ $? -eq 0 ]; then
+        if [[ $? -eq 0 ]]; then
             print_success "Test image ${TEST_IMAGE} built successfully"
         else
             print_error "Failed to build test image ${TEST_IMAGE}"
@@ -194,7 +194,7 @@ cleanup_test_containers() {
     
     # Stop and remove containers matching pattern
     docker ps -a --format "{{.Names}}" | grep "${pattern}" | while read -r container_name; do
-        if [ -n "$container_name" ] && [ "$container_name" != "NAMES" ]; then
+        if [[ -n "$container_name" && "$container_name" != "NAMES" ]]; then
             docker stop "$container_name" >/dev/null 2>&1 || true
             docker rm "$container_name" >/dev/null 2>&1 || true
         fi
@@ -202,7 +202,7 @@ cleanup_test_containers() {
     
     # Also cleanup any containers using our test image that might have random names
     docker ps -a --filter "ancestor=${TEST_IMAGE}" --format "{{.Names}}" | while read -r container_name; do
-        if [ -n "$container_name" ] && [ "$container_name" != "NAMES" ]; then
+        if [[ -n "$container_name" && "$container_name" != "NAMES" ]]; then
             docker stop "$container_name" >/dev/null 2>&1 || true
             docker rm "$container_name" >/dev/null 2>&1 || true
         fi
