@@ -17,16 +17,19 @@ NC='\033[0m' # No Color
 # Helper function to print success messages
 print_success() {
     echo -e "${GREEN}✅ $1${NC}" >&3
+    return 0
 }
 
 # Helper function to print warning messages
 print_warning() {
     echo -e "${YELLOW}⚠️  $1${NC}" >&3
+    return 0
 }
 
 # Helper function to print error messages
 print_error() {
     echo -e "${RED}❌ $1${NC}" >&3
+    return 0
 }
 
 # Helper function to run squid container and capture output (for CLI tests)
@@ -48,6 +51,7 @@ run_squid_container_output() {
         # Override entrypoint to run squid commands directly
         docker run --rm --entrypoint="" ${extra_args} "${TEST_IMAGE}" squid ${cmd} 2>&1
     fi
+    return $?
 }
 
 # Helper function to run shell commands in container and capture output (for container tests)
@@ -60,6 +64,7 @@ run_shell_container_output() {
     
     # Override entrypoint to use shell for command execution with timeout
     ${timeout_cmd} docker run --rm --entrypoint="" ${extra_args} "${TEST_IMAGE}" sh -c "${cmd}" 2>&1
+    return $?
 }
 
 # Helper function to run container without output capture (for exit code tests)
@@ -69,6 +74,7 @@ run_shell_container() {
     
     # Override entrypoint to use shell for command execution
     docker run --rm --entrypoint="" ${extra_args} "${TEST_IMAGE}" sh -c "${cmd}"
+    return $?
 }
 
 # Helper function to run squid container in daemon mode for proxy testing
@@ -77,6 +83,7 @@ run_squid_daemon() {
     local extra_args="${2:-}"
     
     docker run -d --name "${container_name}" -p "${SQUID_PORT}:3128" ${extra_args} "${TEST_IMAGE}"
+    return $?
 }
 
 # Helper function to stop and remove squid daemon container
@@ -85,6 +92,7 @@ stop_squid_daemon() {
     
     docker stop "${container_name}" >/dev/null 2>&1 || true
     docker rm "${container_name}" >/dev/null 2>&1 || true
+    return 0
 }
 
 # Helper function to test proxy functionality
@@ -94,6 +102,7 @@ test_proxy_connection() {
     local test_url="${3:-http://httpbin.org/ip}"
     
     curl -s --proxy "${proxy_host}:${proxy_port}" --max-time 10 "${test_url}"
+    return $?
 }
 
 # Helper function to wait for squid to be ready
@@ -131,6 +140,7 @@ is_container_running() {
     local container_name="$1"
     
     docker ps --format "table {{.Names}}" | grep -q "^${container_name}$"
+    return $?
 }
 
 # Helper function to get container logs
@@ -139,6 +149,7 @@ get_container_logs() {
     local lines="${2:-50}"
     
     docker logs --tail "${lines}" "${container_name}" 2>&1
+    return $?
 }
 
 # Helper function to check if Docker image exists
@@ -146,17 +157,20 @@ docker_image_exists() {
     local image_name="$1"
     
     docker images --format "table {{.Repository}}:{{.Tag}}" | grep -q "^${image_name}$"
+    return $?
 }
 
 # Helper function to print test header
 print_test_header() {
     local header="$1"
     echo -e "${YELLOW}=== $header ===${NC}" >&3
+    return 0
 }
 
 # Helper function to cleanup test artifacts
 cleanup_test_artifacts() {
     cleanup_test_containers
+    return $?
 }
 
 # Helper function to build test image if it doesn't exist
@@ -171,6 +185,7 @@ ensure_test_image() {
             return 1
         fi
     fi
+    return 0
 }
 
 # Helper function to cleanup test containers
@@ -192,15 +207,18 @@ cleanup_test_containers() {
             docker rm "$container_name" >/dev/null 2>&1 || true
         fi
     done
+    return 0
 }
 
 # Setup function to be called before tests
 setup_test_environment() {
     ensure_test_image
     cleanup_test_containers
+    return $?
 }
 
 # Teardown function to be called after tests
 teardown_test_environment() {
     cleanup_test_containers
+    return $?
 }
