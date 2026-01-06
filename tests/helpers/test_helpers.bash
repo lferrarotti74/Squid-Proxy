@@ -16,19 +16,22 @@ NC='\033[0m' # No Color
 
 # Helper function to print success messages
 print_success() {
-    echo -e "${GREEN}✅ $1${NC}" >&3
+    local message="$1"
+    echo -e "${GREEN}✅ $message${NC}" >&3
     return 0
 }
 
 # Helper function to print warning messages
 print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}" >&3
+    local message="$1"
+    echo -e "${YELLOW}⚠️  $message${NC}" >&3
     return 0
 }
 
 # Helper function to print error messages
 print_error() {
-    echo -e "${RED}❌ $1${NC}" >&3
+    local message="$1"
+    echo -e "${RED}❌ $message${NC}" >&3
     return 0
 }
 
