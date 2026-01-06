@@ -892,7 +892,7 @@ jobs:
       ######################
       - name: Install Syft (SBOM generator)
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh
+          curl --proto "=https" --tlsv1.2 -sSf -L https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh
           # Add syft to PATH for subsequent steps
           echo "$PWD/bin" >> $GITHUB_PATH
 
@@ -900,7 +900,7 @@ jobs:
         run: syft ${{ env.REGISTRY_IMAGE }}:latest -o json > sbom.json
 
       - name: Install OSV Scanner
-        run: curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | bash
+        run: curl --proto "=https" --tlsv1.2 -sSf -L https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | bash
 
       - name: Scan SBOM with OSV
         run: osv-scanner sbom.json --output osv-report.json || true
