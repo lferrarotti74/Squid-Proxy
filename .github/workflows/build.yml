@@ -1,10 +1,6 @@
 name: Build release image
 
 # Add permissions block for GitHub Packages
-permissions:
-  contents: write  # Required for updating variables
-  packages: write
-  actions: write   # Required for updating repository variables
 
 on:
   workflow_dispatch:
@@ -253,6 +249,9 @@ jobs:
     # Only run if it's not a scheduled run, OR if it's scheduled and base image updated
     if: github.event_name != 'schedule' || needs.check-base-image.outputs.should_build == 'true'
     needs: [check-base-image]
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         platform: [
@@ -388,6 +387,9 @@ jobs:
     # Only run if it's not a scheduled run, OR if it's scheduled and base image updated
     if: github.event_name != 'schedule' || needs.check-base-image.outputs.should_build == 'true'
     needs: [check-base-image]
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         platform: [
@@ -510,6 +512,9 @@ jobs:
       - build-x86
       - build-arm
       - check-base-image
+    permissions:
+      contents: read
+      packages: write
     if: github.event_name != 'pull_request' && (github.event_name != 'schedule' || needs.check-base-image.outputs.should_build == 'true')
     steps:
       - name: Checkout
