@@ -22,7 +22,7 @@ RUN apk --no-cache update && apk --no-cache upgrade \
          echo "⚡ Installing Squid version $VERSION"; \
          apk --no-cache add squid="$VERSION"; \
        fi \
-    && apk --no-cache upgrade libssl3 libcrypto3 openssl \
+    && apk --no-cache upgrade libssl3 libcrypto3 openssl zlib \
     && rm -rf /var/cache/apk/*
 
 # Copy scripts
