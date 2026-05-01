@@ -898,16 +898,31 @@ jobs:
       # OSV-Scanner for app dependencies
       ######################
       - name: Install Syft (SBOM generator)
+        env:
+          SYFT_VERSION: "v1.43.0"
+          EXPECTED_HASH: "7b98251d2d08926bb5d4639b56b1f0996a58ef6667c5830e3fe3cd3ad5f4214a"
         run: |
-          curl --proto "=https" --tlsv1.2 -sSf -L https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh
-          # Add syft to PATH for subsequent steps
-          echo "$PWD/bin" >> $GITHUB_PATH
+          curl --proto "=https" --tlsv1.2 -sSfL \
+            "https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_linux_amd64.tar.gz" \
+            -o /tmp/syft.tar.gz
+          echo "$EXPECTED_HASH  /tmp/syft.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Syft binary"; exit 1; }
+          tar -xzf /tmp/syft.tar.gz -C /tmp syft
+          mv /tmp/syft /usr/local/bin/syft
 
       - name: Generate SBOM
         run: syft ${{ env.REGISTRY_IMAGE }}:latest -o json > sbom.json
 
       - name: Install OSV Scanner
-        run: curl --proto "=https" --tlsv1.2 -sSf -L https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | bash
+        env:
+          OSV_VERSION: "v2.3.6"
+          EXPECTED_HASH: "f689e183ef0d573d2459738aae457d411a26241ae58b5088de1af288b3355604"
+        run: |
+          curl --proto "=https" --tlsv1.2 -sSfL \
+            "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64" \
+            -o /tmp/osv-scanner
+          echo "$EXPECTED_HASH  /tmp/osv-scanner" | sha256sum --check --status || { echo "Hash verification failed for OSV Scanner binary"; exit 1; }
+          chmod +x /tmp/osv-scanner
+          mv /tmp/osv-scanner /usr/local/bin/osv-scanner
 
       - name: Scan SBOM with OSV
         run: osv-scanner sbom.json --output osv-report.json || true
