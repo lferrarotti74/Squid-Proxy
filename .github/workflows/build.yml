@@ -104,22 +104,24 @@ jobs:
           
           # Get current digest from Docker Hub using a more reliable method
           echo "Pulling latest Alpine image info..."
-          
-          # Use docker manifest inspect instead of buildx imagetools
-          NEW_DIGEST=$(docker manifest inspect alpine:latest | jq -r '.config.digest // .digest // empty')
-          
+
+          # Check the same tag the Dockerfile builds FROM (alpine:3), and
+          # pull out the linux/amd64 manifest digest from the manifest list
+          # (a bare .digest/.config.digest doesn't exist on a manifest list).
+          NEW_DIGEST=$(docker manifest inspect alpine:3 2>/dev/null | jq -r '.manifests[]? | select(.platform.architecture=="amd64" and .platform.os=="linux") | .digest' | head -n1)
+
           # Fallback method if the above doesn't work
           if [ -z "$NEW_DIGEST" ] || [ "$NEW_DIGEST" = "null" ]; then
             echo "Trying alternative digest retrieval method..."
-            docker pull alpine:latest > /dev/null 2>&1
-            NEW_DIGEST=$(docker image inspect alpine:latest --format '{{index .RepoDigests 0}}' | cut -d'@' -f2)
+            docker pull alpine:3 > /dev/null 2>&1
+            NEW_DIGEST=$(docker image inspect alpine:3 --format '{{index .RepoDigests 0}}' | cut -d'@' -f2)
           fi
-          
+
           # Final fallback using docker buildx but with better error handling
           if [ -z "$NEW_DIGEST" ] || [ "$NEW_DIGEST" = "null" ]; then
             echo "Using buildx imagetools as fallback..."
             set +e  # Don't exit on error
-            INSPECT_OUTPUT=$(docker buildx imagetools inspect alpine:latest --format '{{json .}}' 2>/dev/null)
+            INSPECT_OUTPUT=$(docker buildx imagetools inspect alpine:3 --format '{{json .}}' 2>/dev/null)
             if [ $? -eq 0 ]; then
               NEW_DIGEST=$(echo "$INSPECT_OUTPUT" | jq -r '.manifest.digest // .digest // empty')
             fi
@@ -339,13 +341,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-${{ matrix.platform.name }}-
             ${{ runner.os }}-buildx-
-        
+
       - name: Build and Push Image by Digest
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           platforms: ${{ matrix.platform.name }}
+          pull: true
           build-args: VERSION=${{ env.SQUID_VERSION }}
           labels: |
             ${{ steps.meta.outputs.labels }}
@@ -464,13 +467,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-arm-buildx-${{ matrix.platform.name }}-
             ${{ runner.os }}-arm-buildx-
-        
+
       - name: Build and Push Image by Digest
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           platforms: ${{ matrix.platform.name }}
+          pull: true
           build-args: VERSION=${{ env.SQUID_VERSION }}
           labels: |
             ${{ steps.meta.outputs.labels }}
