@@ -70,9 +70,13 @@ teardown() {
     run_squid_daemon "squid-proxy-test"
     wait_for_squid "squid-proxy-test"
     
-    # Make a request through the proxy (may fail but should generate logs)
-    docker exec squid-proxy-test curl -s --proxy localhost:3128 --max-time 5 http://httpbin.org/ip >/dev/null 2>&1 || true
-    
+    # Make a request through the proxy (may fail but should generate logs).
+    # The production image doesn't ship curl, so only attempt this when it's
+    # available; squid still logs its own startup/activity either way.
+    if container_has_curl "squid-proxy-test"; then
+        docker exec squid-proxy-test curl -s --proxy localhost:3128 --max-time 5 http://httpbin.org/ip >/dev/null 2>&1 || true
+    fi
+
     # Check squid logs
     run get_container_logs "squid-proxy-test"
     [ "$status" -eq 0 ]
@@ -85,13 +89,19 @@ teardown() {
     # Start squid in daemon mode
     run_squid_daemon "squid-proxy-test"
     wait_for_squid "squid-proxy-test"
-    
+
+    # curl isn't shipped in the minimal production image; skip rather than
+    # let a "command not found" exit silently count as a pass.
+    if ! container_has_curl "squid-proxy-test"; then
+        skip "curl not available in test image"
+    fi
+
     # Test CONNECT method (for HTTPS tunneling)
     run docker exec squid-proxy-test curl -s --proxy localhost:3128 --max-time 5 -I https://httpbin.org/ip
-    
+
     # Should get some response or connection attempt
     [ -n "$output" ] || [ "$status" -ne 0 ]  # Either success or expected failure
-    
+
     print_success "Squid proxy handles CONNECT method for HTTPS"
 }
 

@@ -103,9 +103,20 @@ test_proxy_connection() {
     local proxy_host="${1:-localhost}"
     local proxy_port="${2:-$SQUID_PORT}"
     local test_url="${3:-http://httpbin.org/ip}"
-    
+
     curl -s --proxy "${proxy_host}:${proxy_port}" --max-time 10 "${test_url}"
     return $?
+}
+
+# Helper function to check whether curl is present inside a running test
+# container. The production image is a minimal Alpine build that does not
+# ship curl, so curl-based assertions must check for it first and skip
+# gracefully instead of relying on the resulting exit 127 to satisfy an
+# "either succeeds or fails" assertion (which bats flags as a BW01 warning
+# and, worse, tests nothing).
+container_has_curl() {
+    local container_name="$1"
+    docker exec "${container_name}" which curl >/dev/null 2>&1
 }
 
 # Helper function to wait for squid to be ready
