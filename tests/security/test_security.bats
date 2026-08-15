@@ -88,9 +88,12 @@ teardown() {
     run_squid_daemon "squid-security-test"
     wait_for_squid "squid-security-test"
     
-    # Make a test request
-    docker exec squid-security-test curl -s --proxy localhost:3128 --max-time 5 "http://httpbin.org/ip" >/dev/null 2>&1 || true
-    
+    # Make a test request. The production image doesn't ship curl, so only
+    # attempt this when it's available.
+    if container_has_curl "squid-security-test"; then
+        docker exec squid-security-test curl -s --proxy localhost:3128 --max-time 5 "http://httpbin.org/ip" >/dev/null 2>&1 || true
+    fi
+
     # Check logs for sensitive information
     run get_container_logs "squid-security-test"
     [ "$status" -eq 0 ]
@@ -123,13 +126,19 @@ teardown() {
     # Start squid in daemon mode
     run_squid_daemon "squid-security-test"
     wait_for_squid "squid-security-test"
-    
+
+    # curl isn't shipped in the minimal production image; skip rather than
+    # let a "command not found" exit silently count as a pass.
+    if ! container_has_curl "squid-security-test"; then
+        skip "curl not available in test image"
+    fi
+
     # Test for proxy chaining vulnerability
-    run docker exec squid-security-test curl -s --proxy localhost:3128 --max-time 5 "http://localhost:3128/test" 2>&1 || true
-    
+    run docker exec squid-security-test curl -s --proxy localhost:3128 --max-time 5 "http://localhost:3128/test"
+
     # Should not allow self-referencing proxy requests
     [[ "$output" =~ "error" ]] || [[ "$output" =~ "denied" ]] || [[ "$output" =~ "forbidden" ]] || [ "$status" -ne 0 ]
-    
+
     print_success "Squid prevents proxy chaining attacks"
 }
 
@@ -173,10 +182,16 @@ teardown() {
     # Start squid in daemon mode
     run_squid_daemon "squid-security-test"
     wait_for_squid "squid-security-test"
-    
+
+    # curl isn't shipped in the minimal production image; skip rather than
+    # let a "command not found" exit silently count as a pass.
+    if ! container_has_curl "squid-security-test"; then
+        skip "curl not available in test image"
+    fi
+
     # Check that squid doesn't expose internal network details
-    run docker exec squid-security-test curl -s --proxy localhost:3128 --max-time 5 "http://httpbin.org/headers" 2>&1 || true
-    
+    run docker exec squid-security-test curl -s --proxy localhost:3128 --max-time 5 "http://httpbin.org/headers"
+
     # Should not expose internal container information
     ! [[ "$output" =~ "172.17" ]]  # Docker internal network
     ! [[ "$output" =~ "10.0" ]]    # Private network ranges
