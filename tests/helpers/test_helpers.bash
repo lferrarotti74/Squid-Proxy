@@ -117,6 +117,7 @@ test_proxy_connection() {
 container_has_curl() {
     local container_name="$1"
     docker exec "${container_name}" which curl >/dev/null 2>&1
+    return $?
 }
 
 # Helper function to wait for squid to be ready
