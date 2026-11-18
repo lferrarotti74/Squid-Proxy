@@ -132,8 +132,8 @@ jobs:
           
           # Validate digest format
           if [[ ! "$NEW_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST"
-            echo "Skipping build due to digest retrieval error."
+            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST" >&2
+            echo "Skipping build due to digest retrieval error." >&2
             echo "should_build=false" >> $GITHUB_OUTPUT
             echo "update_reason=Failed to retrieve valid Alpine digest" >> $GITHUB_OUTPUT
             exit 0
